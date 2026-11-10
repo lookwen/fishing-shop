@@ -1,0 +1,57 @@
+{
+  "source": {
+    "name": "Flyhouse",
+    "base_url": "https://flyhouse.pl"
+  },
+  "categories": [
+    {
+      "source_id": "category-waders",
+      "name": "Wodery do brodzenia",
+      "url": "https://flyhouse.pl/pl/wodery-do-brodzenia/",
+      "parent_source_id": null
+    },
+    {
+      "source_id": "category-waders-orvis",
+      "name": "Wodery Orvis",
+      "url": "https://flyhouse.pl/pl/wodery-orvis/",
+      "parent_source_id": "category-waders"
+    }
+  ],
+  "products": [
+    {
+      "source_id": "product-clearwater-zip",
+      "url": "https://flyhouse.pl/pl/wodery-orvis/wodery-do-brodzenia-orvis-clearwater-zip-z-zamkiem.html",
+      "name": "Wodery do brodzenia Orvis Clearwater Zip (z zamkiem)",
+      "description": "Męskie spodniobuty Clearwater Zip z wodoodpornym przednim zamkiem błyskawicznym. (Skrót opisu do celów przykładowych.)",
+      "price_gross": 2395.0,
+      "price_net": 1947.15,
+      "currency": "PLN",
+      "vat_rate": null,
+      "weight_kg": null,
+      "brand": "Orvis",
+      "reference": null,
+      "category_ids": [
+        "category-waders-orvis"
+      ],
+      "attributes": [],
+      "variants": [
+        {
+          "source_id": "product-clearwater-zip-small-7-9",
+          "attributes": {
+            "size": "Small",
+            "shoe_size": "7-9"
+          },
+          "price_gross": 2395.0,
+          "availability_text": "21 dni"
+        }
+      ],
+      "images": [
+        {
+          "source_url": "https://example.com/REPLACE_WITH_VERIFIED_FULL_SIZE_IMAGE.jpg",
+          "position": 1,
+          "local_path": null
+        }
+      ]
+    }
+  ]
+}
