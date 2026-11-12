@@ -84,3 +84,28 @@ Każdy element `images` wymaga:
 - Wymóg odpowiedniej rozdzielczości i rozmiaru plików zdjęć (dłuższy bok 800–1600 px, maks. 300 KB) wymaga walidacji pobranych plików; sam adres URL nie pozwala go sprawdzić.
 
 Wymagane pola są wymagane, ponieważ stanowią minimum potrzebne do rozpoznania źródła, umiejscowienia produktu w katalogu, wyświetlenia podstawowej oferty (nazwa, opis i cena) oraz pobrania przynajmniej jednego zdjęcia. VAT, waga, cena netto, marka, referencja i dostępność wariantu są opcjonalne, bo sklep źródłowy może ich nie publikować; brak danych nie powinien uniemożliwiać zapisania produktu. Kategorie wymagają jawnego `parent_source_id`, aby rekord sam rozstrzygał, czy jest kategorią główną, czy podkategorią.
+
+## Uruchamianie narzędzia
+
+Wymagany jest Python 3.10 lub nowszy. Z katalogu głównego repozytorium zainstaluj zależność:
+
+```powershell
+python -m pip install -r scraper/requirements.txt
+```
+
+Skopiuj `scraper/config/.env.example` do `scraper/config/.env` i dostosuj wartości, w szczególności kontakt w `SCRAPER_USER_AGENT`. Plik `.env` jest lokalny i nie należy go commitować. Zmienne ustawione w środowisku procesu mają pierwszeństwo przed wartościami z `.env`.
+
+| Zmienna | Domyślna wartość | Znaczenie |
+| --- | --- | --- |
+| `SCRAPER_SOURCE_URL` | `https://flyhouse.pl/pl/` | Adres strony źródłowej. |
+| `SCRAPER_OUTPUT_PATH` | `scraper-results/products.json` | Docelowa ścieżka eksportu; ścieżki względne są liczone od katalogu głównego repozytorium. |
+| `SCRAPER_LOG_PATH` | `scraper/logs/scraper.log` | Plik logu; katalog nadrzędny jest tworzony automatycznie. |
+| `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (contact: replace-with-team-contact)` | Wartość nagłówka User-Agent dla przyszłych zapytań scrapera. Zastąp tekst kontaktowy właściwym kontaktem zespołu. |
+
+Uruchom program z katalogu głównego repozytorium:
+
+```powershell
+python scraper/src/main.py
+```
+
+Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Obecny punkt startowy sprawdza i loguje konfigurację, ale jeszcze nie pobiera stron ani nie zapisuje produktów do pliku wynikowego. Ścieżka wyniku jest już skonfigurowana i gotowa do użycia przez implementację scrapowania.
