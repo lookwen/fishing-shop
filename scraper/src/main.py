@@ -5,6 +5,8 @@ from logging.handlers import RotatingFileHandler
 
 from settings import get_settings
 
+LOGGER = logging.getLogger(__name__)
+
 
 def configure_logging(log_path):
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -30,7 +32,7 @@ def main() -> int:
         settings = get_settings()
     except ValueError:
         logging.basicConfig(level=logging.ERROR)
-        logging.exception("Invalid scraper configuration")
+        LOGGER.exception("Invalid scraper configuration")
         return 2
 
     configure_logging(settings.log_path)

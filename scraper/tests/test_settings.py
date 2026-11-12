@@ -1,7 +1,5 @@
 """Unit tests for scraper configuration."""
 
-from pathlib import Path
-
 import pytest
 
 from scraper.src.settings import REPOSITORY_ROOT, get_settings

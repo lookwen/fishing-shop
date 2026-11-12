@@ -1,12 +1,11 @@
 """Load scraper settings from environment variables and config/.env."""
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = REPOSITORY_ROOT / "scraper" / "config" / ".env"
