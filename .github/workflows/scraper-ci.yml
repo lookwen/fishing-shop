@@ -1,0 +1,40 @@
+name: Scraper quality checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scraper-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Ruff and scraper unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scraper/requirements-dev.txt
+
+      - name: Install scraper and development dependencies
+        run: python -m pip install -r scraper/requirements-dev.txt
+
+      - name: Lint scraper and tests
+        run: python -m ruff check scraper/src scraper/tests
+
+      - name: Run scraper unit tests
+        run: python -m pytest scraper/tests -q

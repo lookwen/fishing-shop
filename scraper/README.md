@@ -109,3 +109,20 @@ python scraper/src/main.py
 ```
 
 Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Obecny punkt startowy sprawdza i loguje konfigurację, ale jeszcze nie pobiera stron ani nie zapisuje produktów do pliku wynikowego. Ścieżka wyniku jest już skonfigurowana i gotowa do użycia przez implementację scrapowania.
+
+## Testy i lint
+
+Zależności testowe i Ruff zainstalujesz poleceniem:
+
+```powershell
+python -m pip install -r scraper/requirements-dev.txt
+```
+
+Uruchom lokalnie te same kontrole co pipeline GitHub Actions:
+
+```powershell
+python -m ruff check scraper/src scraper/tests
+python -m pytest scraper/tests -q
+```
+
+Workflow `.github/workflows/scraper-ci.yml` uruchamia się dla każdego pull requestu oraz po pushu do `dev` i `main`.
