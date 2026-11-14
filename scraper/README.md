@@ -100,7 +100,9 @@ Skopiuj `scraper/config/.env.example` do `scraper/config/.env` i dostosuj warto�
 | `SCRAPER_SOURCE_URL` | `https://flyhouse.pl/pl/` | Adres strony źródłowej. |
 | `SCRAPER_OUTPUT_PATH` | `scraper-results/products.json` | Docelowa ścieżka eksportu; ścieżki względne są liczone od katalogu głównego repozytorium. |
 | `SCRAPER_LOG_PATH` | `scraper/logs/scraper.log` | Plik logu; katalog nadrzędny jest tworzony automatycznie. |
-| `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (contact: replace-with-team-contact)` | Wartość nagłówka User-Agent dla przyszłych zapytań scrapera. Zastąp tekst kontaktowy właściwym kontaktem zespołu. |
+| `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (course project; contact: team@example.invalid)` | Opisowy nagłówek User-Agent wysyłany z żądaniami HTTP. Zastąp przykładowy kontakt właściwym kontaktem zespołu. |
+| `SCRAPER_REQUEST_TIMEOUT` | `20` | Limit czasu pojedynczego żądania w sekundach, od 0 do 120 (wartość musi być większa od 0). |
+| `SCRAPER_MAX_RETRIES` | `2` | Maksymalna liczba ponowień po pierwszym żądaniu, od 0 do 5. |
 
 Uruchom program z katalogu głównego repozytorium:
 
@@ -108,7 +110,7 @@ Uruchom program z katalogu głównego repozytorium:
 python scraper/src/main.py
 ```
 
-Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Obecny punkt startowy sprawdza i loguje konfigurację, ale jeszcze nie pobiera stron ani nie zapisuje produktów do pliku wynikowego. Ścieżka wyniku jest już skonfigurowana i gotowa do użycia przez implementację scrapowania.
+Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Punkt startowy pobiera skonfigurowaną stronę z opisowym nagłówkiem `User-Agent` i sprawdza `robots.txt` dla każdego hosta, także po przekierowaniu. Żądania `robots.txt`, przekierowania i retry również są ograniczone do maksymalnie 2 na sekundę. Błędy sieciowe oraz HTTP 408, 429 i 5xx są ponawiane z wykładniczym opóźnieniem, maksymalnie `SCRAPER_MAX_RETRIES` razy; pozostałe błędy 4xx nie są ponawiane. Na tym etapie scraper pobiera stronę startową, ale nie parsuje produktów ani nie zapisuje wyników.
 
 ## Testy i lint
 

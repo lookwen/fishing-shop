@@ -3,6 +3,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+from fetcher import FetchError, PageFetcher
 from settings import get_settings
 
 LOGGER = logging.getLogger(__name__)
@@ -41,10 +42,22 @@ def main() -> int:
     logger.info("Source URL: %s", settings.source_url)
     logger.info("Configured output path: %s", settings.output_path)
     logger.info("Log file: %s", settings.log_path)
-    logger.info("User-Agent configured: %s", settings.user_agent)
-    logger.info(
-        "Setup is ready; product fetching and output generation are not implemented yet"
+    logger.info("User-Agent: %s", settings.user_agent)
+    logger.info("Request rate limit: at most 2 requests per second")
+    logger.info("Maximum retries per request: %s", settings.max_retries)
+    fetcher = PageFetcher(
+        user_agent=settings.user_agent,
+        timeout_seconds=settings.request_timeout_seconds,
+        max_retries=settings.max_retries,
     )
+    try:
+        page = fetcher.fetch_page(settings.source_url)
+    except FetchError as exc:
+        logger.error("Could not fetch source page: %s", exc)
+        return 1
+
+    logger.info("Source page fetched successfully (%s bytes)", len(page.body))
+    logger.info("Product parsing and output generation are not implemented yet")
     logger.info("Scraper run finished")
     return 0
 

@@ -23,6 +23,8 @@ class Settings:
     output_path: Path
     log_path: Path
     user_agent: str
+    request_timeout_seconds: float
+    max_retries: int
 
 
 def get_settings() -> Settings:
@@ -38,6 +40,20 @@ def get_settings() -> Settings:
     if not user_agent:
         raise ValueError("SCRAPER_USER_AGENT cannot be empty")
 
+    try:
+        request_timeout_seconds = float(os.getenv("SCRAPER_REQUEST_TIMEOUT", "20"))
+        max_retries = int(os.getenv("SCRAPER_MAX_RETRIES", "2"))
+    except ValueError as exc:
+        raise ValueError(
+            "SCRAPER_REQUEST_TIMEOUT and SCRAPER_MAX_RETRIES must be numeric"
+        ) from exc
+    if not 0 < request_timeout_seconds <= 120:
+        raise ValueError(
+            "SCRAPER_REQUEST_TIMEOUT must be greater than 0 and at most 120"
+        )
+    if not 0 <= max_retries <= 5:
+        raise ValueError("SCRAPER_MAX_RETRIES must be between 0 and 5")
+
     return Settings(
         source_url=source_url,
         output_path=_path_from_env(
@@ -47,4 +63,6 @@ def get_settings() -> Settings:
             "SCRAPER_LOG_PATH", "scraper/logs/scraper.log"
         ),
         user_agent=user_agent,
+        request_timeout_seconds=request_timeout_seconds,
+        max_retries=max_retries,
     )
