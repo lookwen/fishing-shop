@@ -2,11 +2,15 @@
 
 import logging
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
+from catalog import CachedPageSource, discover_catalog, validate_catalog, write_catalog
 from fetcher import FetchError, PageFetcher
+from jsonschema.exceptions import ValidationError
 from settings import get_settings
 
 LOGGER = logging.getLogger(__name__)
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schema.json"
 
 
 def configure_logging(log_path):
@@ -42,6 +46,7 @@ def main() -> int:
     logger.info("Source URL: %s", settings.source_url)
     logger.info("Configured output path: %s", settings.output_path)
     logger.info("Log file: %s", settings.log_path)
+    logger.info("Page cache: %s", settings.cache_dir)
     logger.info("User-Agent: %s", settings.user_agent)
     logger.info("Request rate limit: at most 2 requests per second")
     logger.info("Maximum retries per request: %s", settings.max_retries)
@@ -51,13 +56,17 @@ def main() -> int:
         max_retries=settings.max_retries,
     )
     try:
-        page = fetcher.fetch_page(settings.source_url)
-    except FetchError as exc:
-        logger.error("Could not fetch source page: %s", exc)
+        page_source = CachedPageSource(fetcher, settings.cache_dir)
+        catalog = discover_catalog(settings.source_url, page_source)
+        validate_catalog(catalog, SCHEMA_PATH)
+        write_catalog(catalog, settings.output_path)
+    except (FetchError, ValidationError, ValueError, OSError) as exc:
+        logger.error("Catalog discovery failed: %s", exc)
         return 1
 
-    logger.info("Source page fetched successfully (%s bytes)", len(page.body))
-    logger.info("Product parsing and output generation are not implemented yet")
+    logger.info("Discovered %s categories", len(catalog["categories"]))
+    logger.info("Discovered %s product listing URLs", len(catalog["product_listings"]))
+    logger.info("UTF-8 catalog written to %s", settings.output_path)
     logger.info("Scraper run finished")
     return 0
 

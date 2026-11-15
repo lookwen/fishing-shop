@@ -265,6 +265,44 @@
           "images"
         ]
       }
+    },
+    "product_listings": {
+      "type": "array",
+      "description": "Discovered product names and source URLs from category listings; detailed product fields are collected separately.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "category_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "source_id",
+          "name",
+          "url",
+          "category_ids"
+        ]
+      }
     }
   },
   "required": [

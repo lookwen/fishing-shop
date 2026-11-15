@@ -22,6 +22,7 @@ class Settings:
     source_url: str
     output_path: Path
     log_path: Path
+    cache_dir: Path
     user_agent: str
     request_timeout_seconds: float
     max_retries: int
@@ -62,6 +63,7 @@ def get_settings() -> Settings:
         log_path=_path_from_env(
             "SCRAPER_LOG_PATH", "scraper/logs/scraper.log"
         ),
+        cache_dir=_path_from_env("SCRAPER_CACHE_DIR", "scraper/cache/pages"),
         user_agent=user_agent,
         request_timeout_seconds=request_timeout_seconds,
         max_retries=max_retries,

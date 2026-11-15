@@ -28,6 +28,10 @@ Każda kategoria i podkategoria jest osobnym elementem `categories`. Kategorię 
 | `url` | Tak | Absolutny adres HTTP lub HTTPS strony kategorii. |
 | `parent_source_id` | Tak | Identyfikator kategorii nadrzędnej albo `null` dla kategorii głównej. Pole jest wymagane także wtedy, gdy jego wartość to `null`, aby jednoznacznie opisać hierarchię. |
 
+## Odkryte linki produktów
+
+Eksport z etapu odkrywania zapisuje również tablicę `product_listings`. Każdy wpis zawiera `source_id` (stabilny identyfikator wyliczony z URL), `name` (nazwę wyświetlaną na karcie produktu), `url` (pełny adres strony produktu w sklepie źródłowym) i `category_ids` (identyfikatory kategorii, w których produkt został znaleziony). Pełne rekordy `products` pozostają osobną częścią schematu i mogą być uzupełnione w następnym kroku scrapowania.
+
 ## Produkty
 
 | Pole | Wymagane | Znaczenie |
@@ -100,6 +104,7 @@ Skopiuj `scraper/config/.env.example` do `scraper/config/.env` i dostosuj warto�
 | `SCRAPER_SOURCE_URL` | `https://flyhouse.pl/pl/` | Adres strony źródłowej. |
 | `SCRAPER_OUTPUT_PATH` | `scraper-results/products.json` | Docelowa ścieżka eksportu; ścieżki względne są liczone od katalogu głównego repozytorium. |
 | `SCRAPER_LOG_PATH` | `scraper/logs/scraper.log` | Plik logu; katalog nadrzędny jest tworzony automatycznie. |
+| `SCRAPER_CACHE_DIR` | `scraper/cache/pages` | Lokalny cache HTML używany do wznowienia pracy bez ponownego pobierania zapisanych stron. Cache jest wykluczony z Git. |
 | `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (course project; contact: team@example.invalid)` | Opisowy nagłówek User-Agent wysyłany z żądaniami HTTP. Zastąp przykładowy kontakt właściwym kontaktem zespołu. |
 | `SCRAPER_REQUEST_TIMEOUT` | `20` | Limit czasu pojedynczego żądania w sekundach, od 0 do 120 (wartość musi być większa od 0). |
 | `SCRAPER_MAX_RETRIES` | `2` | Maksymalna liczba ponowień po pierwszym żądaniu, od 0 do 5. |
@@ -110,7 +115,7 @@ Uruchom program z katalogu głównego repozytorium:
 python scraper/src/main.py
 ```
 
-Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Punkt startowy pobiera skonfigurowaną stronę z opisowym nagłówkiem `User-Agent` i sprawdza `robots.txt` dla każdego hosta, także po przekierowaniu. Żądania `robots.txt`, przekierowania i retry również są ograniczone do maksymalnie 2 na sekundę. Błędy sieciowe oraz HTTP 408, 429 i 5xx są ponawiane z wykładniczym opóźnieniem, maksymalnie `SCRAPER_MAX_RETRIES` razy; pozostałe błędy 4xx nie są ponawiane. Na tym etapie scraper pobiera stronę startową, ale nie parsuje produktów ani nie zapisuje wyników.
+Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Scraper odczytuje hierarchię kategorii z menu sklepu, przechodzi po stronach kategorii i stronicowaniu, a z kart produktu zbiera nazwę i URL. Wysyła opisowy nagłówek `User-Agent`, sprawdza `robots.txt` dla każdego hosta (również po przekierowaniu), ogranicza wszystkie żądania do maksymalnie 2 na sekundę i loguje błędy. Błędy sieciowe oraz HTTP 408, 429 i 5xx są ponawiane z wykładniczym opóźnieniem, maksymalnie `SCRAPER_MAX_RETRIES` razy; pozostałe błędy 4xx nie są ponawiane. Pobrane strony są zapisywane atomowo w `SCRAPER_CACHE_DIR`, więc ponowne uruchomienie używa cache. Eksport `products.json` jest sprawdzany względem `schema.json` i zapisywany jako UTF-8. Cache można wyczyścić ręcznie, aby pobrać świeżą wersję źródła.
 
 ## Testy i lint
 
