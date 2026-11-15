@@ -1,0 +1,96 @@
+{
+  "total": 917,
+  "exported": 914,
+  "rejected": 3,
+  "issues": [
+    {
+      "source_id": "product-997e0b078612077c",
+      "url": "https://flyhouse.pl/pl/strona-glowna/linka-muchowa-scientific-anglers-sonar-titan-gt-fi.html",
+      "error": "HTTP 404 for https://flyhouse.pl/pl/index.php?controller=404",
+      "missing_required_fields": [],
+      "validation_errors": [],
+      "partial_product": null
+    },
+    {
+      "source_id": "product-802dfc40f1c85fa6",
+      "url": "https://flyhouse.pl/pl/smary-zele-patki/fly-dip-floatant-revolution.html",
+      "error": null,
+      "missing_required_fields": [
+        "images"
+      ],
+      "validation_errors": [
+        {
+          "path": "images",
+          "message": "[] should be non-empty"
+        }
+      ],
+      "partial_product": {
+        "source_id": "product-802dfc40f1c85fa6",
+        "url": "https://flyhouse.pl/pl/smary-zele-patki/fly-dip-floatant-revolution.html",
+        "name": "Fly Dip Floatant Revolution",
+        "description": "Fly Dip Floatant Revolution",
+        "price_gross": 55.0,
+        "price_net": 44.715447,
+        "currency": "PLN",
+        "vat_rate": 23.0,
+        "weight_kg": null,
+        "brand": "Orvis",
+        "reference": "9X6X0600",
+        "category_ids": [
+          "category-9f037650122ce8e5"
+        ],
+        "attributes": [],
+        "variants": [],
+        "images": []
+      }
+    },
+    {
+      "source_id": "product-1e799e0307dd4c6b",
+      "url": "https://flyhouse.pl/pl/t-shirt/koszulka-z-krotkim-rekawem-orvis-co-t-shirt.html",
+      "error": null,
+      "missing_required_fields": [
+        "description",
+        "price_gross",
+        "currency",
+        "images"
+      ],
+      "validation_errors": [
+        {
+          "path": "currency",
+          "message": "'PLN' was expected"
+        },
+        {
+          "path": "description",
+          "message": "'' should be non-empty"
+        },
+        {
+          "path": "images",
+          "message": "[] should be non-empty"
+        },
+        {
+          "path": "price_gross",
+          "message": "None is not of type 'number'"
+        }
+      ],
+      "partial_product": {
+        "source_id": "product-1e799e0307dd4c6b",
+        "url": "https://flyhouse.pl/pl/t-shirt/koszulka-z-krotkim-rekawem-orvis-co-t-shirt.html",
+        "name": "Strona główna",
+        "description": "",
+        "price_gross": null,
+        "price_net": null,
+        "currency": null,
+        "vat_rate": null,
+        "weight_kg": null,
+        "brand": null,
+        "reference": null,
+        "category_ids": [
+          "category-0eb394fd173cd2ca"
+        ],
+        "attributes": [],
+        "variants": [],
+        "images": []
+      }
+    }
+  ]
+}
