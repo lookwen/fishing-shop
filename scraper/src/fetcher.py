@@ -4,7 +4,7 @@ import logging
 import time
 from dataclasses import dataclass
 from email.message import Message
-from threading import Lock
+from threading import Lock, local
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -59,7 +59,8 @@ class PageFetcher:
         self.user_agent = user_agent
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
-        self._opener = build_opener(_NoAutomaticRedirect())
+        self._thread_state = local()
+        self._robots_lock = Lock()
         self._rate_lock = Lock()
         self._last_request_at = 0.0
         self._robots_cache: dict[str, RobotFileParser] = {}
@@ -81,6 +82,10 @@ class PageFetcher:
         return response
 
     def _check_robots(self, url: str) -> None:
+        with self._robots_lock:
+            self._check_robots_locked(url)
+
+    def _check_robots_locked(self, url: str) -> None:
         parts = urlsplit(url)
         origin = urlunsplit((parts.scheme, parts.netloc, "", "", ""))
         parser = self._robots_cache.get(origin)
@@ -188,8 +193,10 @@ class PageFetcher:
     def _single_request(self, url: str) -> PageResponse:
         self._wait_for_rate_limit()
         request = Request(url, headers={"User-Agent": self.user_agent})
+        if not hasattr(self._thread_state, "opener"):
+            self._thread_state.opener = build_opener(_NoAutomaticRedirect())
         try:
-            with self._opener.open(request, timeout=self.timeout_seconds) as response:
+            with self._thread_state.opener.open(request, timeout=self.timeout_seconds) as response:
                 return PageResponse(
                     url=response.geturl(),
                     status=response.status,

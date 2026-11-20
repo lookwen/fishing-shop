@@ -7,6 +7,7 @@ from pathlib import Path
 from catalog import CachedPageSource, discover_catalog, validate_catalog, write_catalog
 from fetcher import FetchError, PageFetcher
 from jsonschema.exceptions import ValidationError
+from products import extract_products
 from settings import get_settings
 
 LOGGER = logging.getLogger(__name__)
@@ -58,17 +59,24 @@ def main() -> int:
     try:
         page_source = CachedPageSource(fetcher, settings.cache_dir)
         catalog = discover_catalog(settings.source_url, page_source)
+        report = extract_products(catalog, page_source, SCHEMA_PATH)
+        report_path = settings.output_path.with_name(
+            settings.output_path.stem + "-report.json"
+        )
+        write_catalog(report, report_path)
+        logger.info("Product issues report written to %s", report_path)
         validate_catalog(catalog, SCHEMA_PATH)
         write_catalog(catalog, settings.output_path)
     except (FetchError, ValidationError, ValueError, OSError) as exc:
-        logger.error("Catalog discovery failed: %s", exc)
+        logger.error("Catalog extraction failed: %s", exc)
         return 1
 
     logger.info("Discovered %s categories", len(catalog["categories"]))
     logger.info("Discovered %s product listing URLs", len(catalog["product_listings"]))
+    logger.info("Exported %s products; rejected %s", report["exported"], report["rejected"])
     logger.info("UTF-8 catalog written to %s", settings.output_path)
     logger.info("Scraper run finished")
-    return 0
+    return 1 if report["rejected"] else 0
 
 
 if __name__ == "__main__":
