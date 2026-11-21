@@ -313,7 +313,7 @@ def extract_products(
     catalog: dict,
     page_source: CachedPageSource,
     schema_path: Path,
-    max_workers: int = 4,
+    max_workers: int = 10,
 ) -> dict:
     """Fill products with valid records and return a separate, lossless issue report."""
     if not 1 <= max_workers <= 16:

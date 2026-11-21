@@ -107,6 +107,7 @@ Skopiuj `scraper/config/.env.example` do `scraper/config/.env` i dostosuj warto�
 | `SCRAPER_CACHE_DIR` | `scraper/cache/pages` | Lokalny cache HTML używany do wznowienia pracy bez ponownego pobierania zapisanych stron. Cache jest wykluczony z Git. |
 | `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (course project; contact: team@example.invalid)` | Opisowy nagłówek User-Agent wysyłany z żądaniami HTTP. Zastąp przykładowy kontakt właściwym kontaktem zespołu. |
 | `SCRAPER_REQUEST_TIMEOUT` | `20` | Limit czasu pojedynczego żądania w sekundach, od 0 do 120 (wartość musi być większa od 0). |
+| `SCRAPER_WORKERS` | `10` | Liczba wątków produktów i zdjęć, od 1 do 16; wspólny limit nadal wynosi 2 zapytania/s. |
 | `SCRAPER_MAX_RETRIES` | `2` | Maksymalna liczba ponowień po pierwszym żądaniu, od 0 do 5. |
 
 Uruchom program z katalogu głównego repozytorium:
@@ -128,8 +129,56 @@ python -m pip install -r scraper/requirements-dev.txt
 Uruchom lokalnie te same kontrole co pipeline GitHub Actions:
 
 ```powershell
-python -m ruff check scraper/src scraper/tests
+python -m ruff check scraper
 python -m pytest scraper/tests -q
 ```
 
 Workflow `.github/workflows/scraper-ci.yml` uruchamia się dla każdego pull requestu oraz po pushu do `dev` i `main`.
+
+## Pobieranie zdjęć
+
+Po pobraniu danych produktów uruchom z katalogu głównego repozytorium:
+
+```powershell
+python -m pip install -r scraper/requirements.txt
+python scraper/src/images.py
+```
+
+Program pobiera co najmniej jedno zdjęcie każdego produktu i co najmniej dwa dla 50 produktów. Pobieranie pierwszych zdjęć używa `SCRAPER_WORKERS` wątków (domyślnie 10) ze wspólnym limitem 2 zapytań/s, robots.txt i User-Agent z obecnej konfiguracji. Ponowne uruchomienie pomija poprawne pliki, także po przerwaniu poprzedniego przebiegu.
+
+Zdjęcia są zapisywane jako JPEG, z dłuższym bokiem 800–1600 px i rozmiarem do 300 000 bajtów. Źródła poniżej 800 px są odrzucane; program próbuje kolejnych adresów produktu. Ścieżki `images[].local_path` są względne wobec katalogu zawierającego `products.json`.
+
+Wyniki:
+
+- `scraper-results/images/` — przygotowane zdjęcia, poza Git.
+- `scraper-results/products.json` — dotychczasowe dane i lokalne ścieżki zdjęć.
+- `scraper-results/images-report.json` — braki i błędy; niespełnienie wymagań kończy program kodem 1.
+- `scraper-results/product-images.zip` — archiwum do 1 GB, tworzone po spełnieniu wymagań, poza Git.
+- `scraper-results/sample-images/` — do 20 przykładowych zdjęć do repozytorium.
+- `scraper/logs/images.log` — log pobierania i błędów.
+
+Archiwum `product-images.zip` dodaj jako załącznik w GitHub Releases. Na czystym klonie pobierz je i odtwórz zdjęcia poleceniem, podając rzeczywisty adres załącznika:
+
+```powershell
+python scraper/src/images.py --archive-url "ADRES_ZALACZNIKA_Z_RELEASE"
+```
+
+Jeśli archiwum jest niedostępne, program pobierze zdjęcia z adresów źródłowych zapisanych w `products.json`. Tę komendę należy wywołać przed importem zdjęć w skrypcie inicjalizacji sklepu. Samo uruchomienie `main.py` pobiera dane tekstowe i adresy zdjęć.
+
+## Pełny przebieg z pomiarem czasu
+
+```powershell
+python scraper/run.py
+```
+
+Komenda uruchamia kolejno pobieranie danych i zdjęć oraz wypisuje czas obu etapów i łączny. Domyślnie korzysta z 10 wątków i istniejącego cache. Liczbę wątków zmienia `SCRAPER_WORKERS`; wspólny limit nadal wynosi 2 zapytania/s. Kategorie i dobieranie dodatkowych zdjęć są obsługiwane kolejno.
+
+Świeży test bez usuwania poprzednich danych:
+
+```powershell
+python scraper/run.py --fresh
+```
+
+Wariant `--fresh` zapisuje HTML, JSON, zdjęcia, raporty i ZIP w nowym katalogu `scraper/cache/run-*`, wyświetlanym przy uruchomieniu. Te wyniki są poza Git. Zwykły przebieg zapisuje wyniki zgodnie z konfiguracją, domyślnie w `scraper-results/`.
+
+Kod 1 etapu danych z nowo zapisanym JSON-em oznacza częściowy eksport i nie blokuje zdjęć. Raport odrzuconych produktów pozostaje do sprawdzenia. Brak nowego JSON-a przerywa przebieg. Końcowy kod 0 potwierdza spełnienie wymagań zdjęć dla wyeksportowanych produktów, także gdy część produktów odrzucono wcześniej.
