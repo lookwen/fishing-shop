@@ -14,7 +14,9 @@ load_dotenv(ENV_FILE, override=False)
 
 def _path_from_env(name: str, default: str) -> Path:
     value = Path(os.getenv(name, default)).expanduser()
-    return value.resolve() if value.is_absolute() else (REPOSITORY_ROOT / value).resolve()
+    return (
+        value.resolve() if value.is_absolute() else (REPOSITORY_ROOT / value).resolve()
+    )
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class Settings:
     user_agent: str
     request_timeout_seconds: float
     max_retries: int
+    workers: int = 10
 
 
 def get_settings() -> Settings:
@@ -44,9 +47,10 @@ def get_settings() -> Settings:
     try:
         request_timeout_seconds = float(os.getenv("SCRAPER_REQUEST_TIMEOUT", "20"))
         max_retries = int(os.getenv("SCRAPER_MAX_RETRIES", "2"))
+        workers = int(os.getenv("SCRAPER_WORKERS", "10"))
     except ValueError as exc:
         raise ValueError(
-            "SCRAPER_REQUEST_TIMEOUT and SCRAPER_MAX_RETRIES must be numeric"
+            "SCRAPER_REQUEST_TIMEOUT, SCRAPER_MAX_RETRIES and SCRAPER_WORKERS must be numeric"
         ) from exc
     if not 0 < request_timeout_seconds <= 120:
         raise ValueError(
@@ -55,16 +59,18 @@ def get_settings() -> Settings:
     if not 0 <= max_retries <= 5:
         raise ValueError("SCRAPER_MAX_RETRIES must be between 0 and 5")
 
+    if not 1 <= workers <= 16:
+        raise ValueError("SCRAPER_WORKERS must be between 1 and 16")
+
     return Settings(
         source_url=source_url,
         output_path=_path_from_env(
             "SCRAPER_OUTPUT_PATH", "scraper-results/products.json"
         ),
-        log_path=_path_from_env(
-            "SCRAPER_LOG_PATH", "scraper/logs/scraper.log"
-        ),
+        log_path=_path_from_env("SCRAPER_LOG_PATH", "scraper/logs/scraper.log"),
         cache_dir=_path_from_env("SCRAPER_CACHE_DIR", "scraper/cache/pages"),
         user_agent=user_agent,
         request_timeout_seconds=request_timeout_seconds,
         max_retries=max_retries,
+        workers=workers,
     )

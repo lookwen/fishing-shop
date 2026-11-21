@@ -50,6 +50,7 @@ def main() -> int:
     logger.info("Page cache: %s", settings.cache_dir)
     logger.info("User-Agent: %s", settings.user_agent)
     logger.info("Request rate limit: at most 2 requests per second")
+    logger.info("Product workers: %s", settings.workers)
     logger.info("Maximum retries per request: %s", settings.max_retries)
     fetcher = PageFetcher(
         user_agent=settings.user_agent,
@@ -59,7 +60,7 @@ def main() -> int:
     try:
         page_source = CachedPageSource(fetcher, settings.cache_dir)
         catalog = discover_catalog(settings.source_url, page_source)
-        report = extract_products(catalog, page_source, SCHEMA_PATH)
+        report = extract_products(catalog, page_source, SCHEMA_PATH, settings.workers)
         report_path = settings.output_path.with_name(
             settings.output_path.stem + "-report.json"
         )

@@ -9,7 +9,9 @@ def set_valid_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCRAPER_SOURCE_URL", "https://example.test/catalog/")
     monkeypatch.setenv("SCRAPER_OUTPUT_PATH", "build/products.json")
     monkeypatch.setenv("SCRAPER_LOG_PATH", "build/logs/scraper.log")
-    monkeypatch.setenv("SCRAPER_USER_AGENT", "StudyScraper/1.0 (contact: team@example.test)")
+    monkeypatch.setenv(
+        "SCRAPER_USER_AGENT", "StudyScraper/1.0 (contact: team@example.test)"
+    )
 
 
 def test_get_settings_reads_environment_and_resolves_paths(
@@ -43,4 +45,24 @@ def test_get_settings_rejects_empty_user_agent(
     monkeypatch.setenv("SCRAPER_USER_AGENT", "   ")
 
     with pytest.raises(ValueError, match="cannot be empty"):
+        get_settings()
+
+
+def test_worker_count_is_configurable(monkeypatch):
+    set_valid_environment(monkeypatch)
+    monkeypatch.setenv("SCRAPER_WORKERS", "10")
+    assert get_settings().workers == 10
+
+
+def test_worker_count_defaults_to_ten(monkeypatch):
+    set_valid_environment(monkeypatch)
+    monkeypatch.delenv("SCRAPER_WORKERS", raising=False)
+    assert get_settings().workers == 10
+
+
+@pytest.mark.parametrize("workers", ["0", "17", "abc", "2.5"])
+def test_worker_count_rejects_invalid_values(monkeypatch, workers):
+    set_valid_environment(monkeypatch)
+    monkeypatch.setenv("SCRAPER_WORKERS", workers)
+    with pytest.raises(ValueError, match="SCRAPER_WORKERS"):
         get_settings()

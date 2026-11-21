@@ -34,7 +34,7 @@ jobs:
         run: python -m pip install -r scraper/requirements-dev.txt
 
       - name: Lint scraper and tests
-        run: python -m ruff check scraper/src scraper/tests
+        run: python -m ruff check scraper
 
       - name: Run scraper unit tests
         run: python -m pytest scraper/tests -q

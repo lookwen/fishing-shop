@@ -25,3 +25,6 @@ test-results/
 .env.*
 !.env.example
 .venv
+
+scraper-results/product-images.zip
+scraper-results/product-images.tmp
