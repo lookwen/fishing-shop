@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import tempfile
+import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from threading import Lock
 
 from bs4 import BeautifulSoup
 from jsonschema import Draft202012Validator, FormatChecker
@@ -21,6 +25,7 @@ else:
     from fetcher import FetchError
 
 LOGGER = logging.getLogger("scraper.products")
+_PROGRESS_LOCK = Lock()
 
 
 def _text(value: object) -> str:
@@ -314,6 +319,7 @@ def extract_products(
     page_source: CachedPageSource,
     schema_path: Path,
     max_workers: int = 10,
+    progress_path: Path | None = None,
 ) -> dict:
     """Fill products with valid records and return a separate, lossless issue report."""
     if not 1 <= max_workers <= 16:
@@ -322,57 +328,119 @@ def extract_products(
     validator = Draft202012Validator(
         schema["properties"]["products"]["items"], format_checker=FormatChecker()
     )
-    products, issues = [], []
+    products_by_id: dict[str, dict] = {}
+    issues_by_id: dict[str, dict] = {}
+    if progress_path is not None and progress_path.is_file():
+        try:
+            saved = json.loads(progress_path.read_text(encoding="utf-8"))
+            if saved.get("version") == 1:
+                products_by_id = {
+                    item["source_id"]: item
+                    for item in saved.get("products", [])
+                    if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+                }
+                issues_by_id = {
+                    item["source_id"]: item
+                    for item in saved.get("issues", [])
+                    if isinstance(item, dict) and isinstance(item.get("source_id"), str)
+                }
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            LOGGER.warning("Ignoring invalid progress file %s: %s", progress_path, exc)
+
+    def save_progress() -> None:
+        if progress_path is None:
+            return
+        with _PROGRESS_LOCK:
+            progress_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "version": 1,
+                "products": list(products_by_id.values()),
+                "issues": list(issues_by_id.values()),
+            }
+            descriptor, temporary_name = tempfile.mkstemp(
+                prefix=progress_path.name + ".", suffix=".tmp", dir=progress_path.parent
+            )
+            try:
+                with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+                    json.dump(payload, stream, ensure_ascii=False, indent=2)
+                    stream.write("\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                for attempt in range(5):
+                    try:
+                        Path(temporary_name).replace(progress_path)
+                        break
+                    except PermissionError:
+                        if attempt == 4:
+                            raise PermissionError(
+                                f"Windows nie może podmienić pliku postępu {progress_path}. "
+                                "Zamknij inne procesy korzystające z tego pliku i ponów uruchomienie."
+                            )
+                        time.sleep(0.2 * (attempt + 1))
+            finally:
+                Path(temporary_name).unlink(missing_ok=True)
+
+    listings = catalog.get("product_listings", [])
+    pending_listings = [
+        item for item in listings
+        if item["source_id"] not in products_by_id and item["source_id"] not in issues_by_id
+    ]
     for listing, product, exc in _product_results(
-        catalog.get("product_listings", []), page_source, max_workers
+        pending_listings, page_source, max_workers
     ):
+        identifier = listing["source_id"]
         if exc is not None:
             LOGGER.error("Product extraction failed for %s: %s", listing["url"], exc)
-            issues.append(
-                {
-                    "source_id": listing["source_id"],
-                    "url": listing["url"],
-                    "error": str(exc),
-                    "missing_required_fields": [],
-                    "validation_errors": [],
-                    "partial_product": None,
-                }
-            )
+            issues_by_id[identifier] = {
+                "source_id": identifier,
+                "url": listing["url"],
+                "error": str(exc),
+                "missing_required_fields": [],
+                "validation_errors": [],
+                "partial_product": None,
+                "retryable": isinstance(exc, (FetchError, OSError)),
+            }
+            save_progress()
             continue
         errors = sorted(validator.iter_errors(product), key=lambda e: str(list(e.path)))
         if errors:
             missing = [
-                field
-                for field in validator.schema["required"]
-                if product.get(field) is None
-                or product.get(field) == ""
-                or product.get(field) == []
+                field for field in validator.schema["required"]
+                if product.get(field) is None or product.get(field) == "" or product.get(field) == []
             ]
-            issues.append(
-                {
-                    "source_id": listing["source_id"],
-                    "url": listing["url"],
-                    "error": None,
-                    "missing_required_fields": missing,
-                    "validation_errors": [
-                        {
-                            "path": ".".join(map(str, error.path)),
-                            "message": error.message,
-                        }
-                        for error in errors
-                    ],
-                    "partial_product": product,
-                }
-            )
-            LOGGER.warning(
-                "Invalid product %s; missing fields: %s", listing["url"], missing
-            )
+            issues_by_id[identifier] = {
+                "source_id": identifier,
+                "url": listing["url"],
+                "error": None,
+                "missing_required_fields": missing,
+                "validation_errors": [
+                    {"path": ".".join(map(str, error.path)), "message": error.message}
+                    for error in errors
+                ],
+                "partial_product": product,
+                "retryable": False,
+            }
+            LOGGER.warning("Invalid product %s; missing fields: %s", listing["url"], missing)
         else:
-            products.append(product)
+            products_by_id[identifier] = product
+            issues_by_id.pop(identifier, None)
+        save_progress()
+
+    # Transient fetch failures are recorded for the report, then retried on the next run.
+    issues_by_id = {
+        key: value for key, value in issues_by_id.items() if key in {x["source_id"] for x in listings}
+    }
+    products = [products_by_id[x["source_id"]] for x in listings if x["source_id"] in products_by_id]
+    issues = [issues_by_id[x["source_id"]] for x in listings if x["source_id"] in issues_by_id]
+    retryable_ids = {x["source_id"] for x in issues if x.get("retryable")}
+    for identifier in retryable_ids:
+        issues_by_id.pop(identifier, None)
+    if retryable_ids:
+        save_progress()
     catalog["products"] = products
     return {
-        "total": len(catalog.get("product_listings", [])),
+        "total": len(listings),
         "exported": len(products),
         "rejected": len(issues),
-        "issues": issues,
+        "issues": [{k: v for k, v in issue.items() if k != "retryable"} for issue in issues],
     }

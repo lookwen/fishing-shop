@@ -7076,52 +7076,6 @@
       ]
     },
     {
-      "source_id": "product-3b3d2d5a035b88a5",
-      "url": "https://flyhouse.pl/pl/wedki-muchowe-rl-winston/-boron-iii-th.html",
-      "name": "Wędka muchowa Boron III TH",
-      "description": "Boron II TH",
-      "price_gross": 3600.0,
-      "price_net": 2926.829268,
-      "currency": "PLN",
-      "vat_rate": 23.0,
-      "weight_kg": null,
-      "brand": "R.L. Winston",
-      "reference": "RL.BORON",
-      "category_ids": [
-        "category-247c730466be5692",
-        "category-642f06d559cd49c1"
-      ],
-      "attributes": [],
-      "variants": [
-        {
-          "source_id": "product-3b3d2d5a035b88a5-variant-7553",
-          "attributes": {
-            "Model": "1297-4",
-            "Klasa": "#7",
-            "Długość": "12'9\" / 389cm",
-            "Części": "4"
-          },
-          "price_gross": 3600.0,
-          "availability_text": null
-        }
-      ],
-      "images": [
-        {
-          "source_url": "https://flyhouse.pl/3565-superlarge_default/-boron-iii-th.jpg",
-          "position": 1,
-          "local_path": "images/b3ba1673ecc9c3c9f28f17ad.jpg"
-        },
-        {
-          "source_url": "https://flyhouse.pl/3566-superlarge_default/-boron-iii-th.jpg",
-          "position": 2
-        },
-        {
-          "source_url": "https://flyhouse.pl/3567-superlarge_default/-boron-iii-th.jpg",
-          "position": 3
-        }
-      ]
-    },
-    {
       "source_id": "product-fb6920b0fbf10cc6",
       "url": "https://flyhouse.pl/pl/wedki-muchowe-rl-winston/wedka-muchowa-winston-air-2.html",
       "name": "Wędka muchowa Winston AIR 2",
@@ -58607,15 +58561,6 @@
       "url": "https://flyhouse.pl/pl/wedki-muchowe-rl-winston/-winston-saltwater-air.html",
       "category_ids": [
         "category-247c730466be5692"
-      ]
-    },
-    {
-      "source_id": "product-3b3d2d5a035b88a5",
-      "name": "Wędka muchowa Boron III TH",
-      "url": "https://flyhouse.pl/pl/wedki-muchowe-rl-winston/-boron-iii-th.html",
-      "category_ids": [
-        "category-247c730466be5692",
-        "category-642f06d559cd49c1"
       ]
     },
     {

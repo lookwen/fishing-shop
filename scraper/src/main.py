@@ -1,6 +1,7 @@
 """Scraper entry point and logging setup."""
 
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -60,7 +61,15 @@ def main() -> int:
     try:
         page_source = CachedPageSource(fetcher, settings.cache_dir)
         catalog = discover_catalog(settings.source_url, page_source)
-        report = extract_products(catalog, page_source, SCHEMA_PATH, settings.workers)
+        progress_path = Path(
+            os.environ.get(
+                "SCRAPER_PROGRESS_PATH",
+                str(settings.output_path.with_name(settings.output_path.stem + "-progress.json")),
+            )
+        )
+        report = extract_products(
+            catalog, page_source, SCHEMA_PATH, settings.workers, progress_path
+        )
         report_path = settings.output_path.with_name(
             settings.output_path.stem + "-report.json"
         )
