@@ -151,6 +151,40 @@ def test_fetch_failure_does_not_stop_other_products():
     assert data["products"][0]["source_id"] == "second"
 
 
+def test_extract_products_resumes_from_utf8_progress_without_fetching_saved_records(tmp_path):
+    data = catalog()
+    second = dict(LISTING, source_id="product-second", url="https://flyhouse.pl/second.html")
+    data["product_listings"].append(second)
+    checkpoint = tmp_path / "products-progress.json"
+    checkpoint.write_text(
+        json.dumps(
+            {"version": 1, "products": [parse_product(page(), LISTING)], "issues": []},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    resumed_source = Pages(page())
+    resumed = catalog()
+    resumed["product_listings"].append(second)
+    report = extract_products(resumed, resumed_source, SCHEMA, progress_path=checkpoint)
+    assert resumed_source.calls == [second["url"]]
+    assert report["exported"] == 2
+    raw = checkpoint.read_bytes()
+    assert "Wędka".encode() in raw
+    assert json.loads(raw.decode("utf-8"))["products"][0]["name"] == "Wędka testowa"
+
+
+def test_transient_fetch_failure_is_retried_on_resume(tmp_path):
+    checkpoint = tmp_path / "progress.json"
+    failed = extract_products(catalog(), Pages(error=FetchError("temporary")), SCHEMA,
+                              progress_path=checkpoint)
+    assert failed["rejected"] == 1
+    succeeding = Pages(page())
+    recovered = extract_products(catalog(), succeeding, SCHEMA, progress_path=checkpoint)
+    assert succeeding.calls == [LISTING["url"]]
+    assert recovered["exported"] == 1
+
+
 def test_html_fallback_ignores_related_product_prices_and_images():
     html = """<h1>Produkt</h1><div id="description"><div class="product-description">Opis</div></div>
     <div class="product-prices"><meta itemprop="priceCurrency" content="PLN">

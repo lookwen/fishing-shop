@@ -74,12 +74,12 @@ def download_product_images(product, fetcher, directory, minimum):
             continue
         seen.add(url)
         path = directory / image_name(product, image)
-        image.pop("local_path", None)
+        image["local_path"] = f"images/{path.name}" if valid_image(path) else None
         try:
             if not valid_image(path):
                 save_image(path, prepare_image(fetcher.fetch_page(url).body))
             image["local_path"] = f"images/{path.name}"
-            downloaded += 1
+            downloaded = len(local_images(product, directory))
             if downloaded >= minimum:
                 break
         except (FetchError, OSError, ValueError) as exc:
@@ -105,9 +105,6 @@ def local_images(product, directory):
 
 def download_images(catalog, fetcher, directory, double_count=50, max_workers=10):
     products = catalog["products"]
-    for product in products:
-        for image in product["images"]:
-            image.pop("local_path", None)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         results = executor.map(
             lambda product: download_product_images(product, fetcher, directory, 1),

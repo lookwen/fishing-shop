@@ -48,28 +48,59 @@ def test_stale_export_does_not_start_images(monkeypatch, tmp_path):
     assert output.read_text(encoding="utf-8") == "old"
 
 
-def test_fresh_run_preserves_existing_results_and_isolates_cache(monkeypatch, tmp_path):
+def test_fresh_run_state_is_resumed_and_results_stay_in_configured_directory(monkeypatch, tmp_path):
     output = setup_run(monkeypatch, tmp_path, fresh=True)
     output.write_text("old", encoding="utf-8")
+    fresh_dir = tmp_path / "scraper/cache/fresh-run"
+    fresh_dir.mkdir(parents=True)
+    (fresh_dir / "export-ready").touch()
     environments = []
 
     def execute(command, **kwargs):
         environment = kwargs["env"]
         environments.append(environment)
-        target = Path(environment["SCRAPER_OUTPUT_PATH"])
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("{}", encoding="utf-8")
+        if Path(command[1]).name == "main.py":
+            return SimpleNamespace(returncode=1)
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(run.subprocess, "run", execute)
     assert run.main() == 0
     assert len(environments) == 2
     assert environments[0] == environments[1]
-    directory = Path(environments[0]["SCRAPER_OUTPUT_PATH"]).parent
-    assert directory.name.startswith("run-")
-    assert Path(environments[0]["SCRAPER_CACHE_DIR"]) == directory / "pages"
+    assert environments[0]["SCRAPER_CACHE_DIR"] == environments[1]["SCRAPER_CACHE_DIR"]
+    assert environments[0]["SCRAPER_PROGRESS_PATH"] == str(fresh_dir / "products-progress.json")
+    assert Path(environments[0]["SCRAPER_OUTPUT_PATH"]) == output
+    cache = Path(environments[0]["SCRAPER_CACHE_DIR"])
+    assert cache.parent.name == "fresh-run"
+    assert cache.name == "pages"
+    assert cache.parent.parent == tmp_path / "scraper/cache"
     assert output.read_text(encoding="utf-8") == "old"
     assert os.environ["SCRAPER_OUTPUT_PATH"] == str(output)
+    assert (tmp_path / "scraper/cache/fresh-run").exists()
+
+
+def test_restart_fresh_clears_old_state(monkeypatch, tmp_path):
+    output = setup_run(monkeypatch, tmp_path)
+    monkeypatch.setattr(run.sys, "argv", ["run.py", "--restart-fresh"])
+    fresh_dir = tmp_path / "scraper/cache/fresh-run"
+    (fresh_dir / "pages").mkdir(parents=True)
+    (fresh_dir / "pages/old.html").write_text("old", encoding="utf-8")
+    environments = []
+
+    def execute(command, **kwargs):
+        environments.append(kwargs["env"])
+        if Path(command[1]).name == "main.py":
+            output.write_text("{}", encoding="utf-8")
+            return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(run.subprocess, "run", execute)
+    assert run.main() == 0
+    cache = Path(environments[0]["SCRAPER_CACHE_DIR"])
+    assert cache == fresh_dir / "pages"
+    assert environments[0]["SCRAPER_PROGRESS_PATH"] == str(fresh_dir / "products-progress.json")
+    assert not (cache / "old.html").exists()
+    assert not fresh_dir.exists()
 
 
 def test_image_failure_is_returned(monkeypatch, tmp_path):

@@ -105,6 +105,7 @@ Skopiuj `scraper/config/.env.example` do `scraper/config/.env` i dostosuj warto�
 | `SCRAPER_OUTPUT_PATH` | `scraper-results/products.json` | Docelowa ścieżka eksportu; ścieżki względne są liczone od katalogu głównego repozytorium. |
 | `SCRAPER_LOG_PATH` | `scraper/logs/scraper.log` | Plik logu; katalog nadrzędny jest tworzony automatycznie. |
 | `SCRAPER_CACHE_DIR` | `scraper/cache/pages` | Lokalny cache HTML używany do wznowienia pracy bez ponownego pobierania zapisanych stron. Cache jest wykluczony z Git. |
+| `SCRAPER_OUTPUT_PATH` + `-progress.json` | `scraper-results/products-progress.json` | Automatyczny checkpoint ukończonych rekordów w UTF-8; przy następnym uruchomieniu gotowe rekordy są pomijane, a błędy sieciowe ponawiane. Usuń ten plik razem z cache, jeśli chcesz wymusić pełne pobranie od początku. |
 | `SCRAPER_USER_AGENT` | `FishingShopEducationalScraper/1.0 (course project; contact: team@example.invalid)` | Opisowy nagłówek User-Agent wysyłany z żądaniami HTTP. Zastąp przykładowy kontakt właściwym kontaktem zespołu. |
 | `SCRAPER_REQUEST_TIMEOUT` | `20` | Limit czasu pojedynczego żądania w sekundach, od 0 do 120 (wartość musi być większa od 0). |
 | `SCRAPER_WORKERS` | `10` | Liczba wątków produktów i zdjęć, od 1 do 16; wspólny limit nadal wynosi 2 zapytania/s. |
@@ -116,7 +117,7 @@ Uruchom program z katalogu głównego repozytorium:
 python scraper/src/main.py
 ```
 
-Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Scraper odczytuje hierarchię kategorii z menu sklepu, przechodzi po stronach kategorii i stronicowaniu, a z kart produktu zbiera nazwę i URL. Wysyła opisowy nagłówek `User-Agent`, sprawdza `robots.txt` dla każdego hosta (również po przekierowaniu), ogranicza wszystkie żądania do maksymalnie 2 na sekundę i loguje błędy. Błędy sieciowe oraz HTTP 408, 429 i 5xx są ponawiane z wykładniczym opóźnieniem, maksymalnie `SCRAPER_MAX_RETRIES` razy; pozostałe błędy 4xx nie są ponawiane. Pobrane strony są zapisywane atomowo w `SCRAPER_CACHE_DIR`, więc ponowne uruchomienie używa cache. Eksport `products.json` jest sprawdzany względem `schema.json` i zapisywany jako UTF-8. Cache można wyczyścić ręcznie, aby pobrać świeżą wersję źródła.
+Logi są wypisywane w konsoli i zapisywane do `scraper/logs/scraper.log`; plik jest rotowany po przekroczeniu 2 MB, z zachowaniem trzech kopii. Program tworzy katalog logów automatycznie. Scraper odczytuje hierarchię kategorii z menu sklepu, przechodzi po stronach kategorii i stronicowaniu, a z kart produktu zbiera nazwę i URL. Wysyła opisowy nagłówek `User-Agent`, sprawdza `robots.txt` dla każdego hosta (również po przekierowaniu), ogranicza wszystkie żądania do maksymalnie 2 na sekundę i loguje błędy. Błędy sieciowe oraz HTTP 408, 429 i 5xx są ponawiane z wykładniczym opóźnieniem, maksymalnie `SCRAPER_MAX_RETRIES` razy; pozostałe błędy 4xx nie są ponawiane. Pobrane strony są zapisywane atomowo w `SCRAPER_CACHE_DIR`. Każdy ukończony rekord produktu jest atomowo dopisywany do pliku `products-progress.json` w UTF-8; wznowienie pomija zapisane rekordy, a błędy sieciowe ponawia. Eksport `products.json` jest sprawdzany względem `schema.json` i zapisywany jako UTF-8. Poprawne zdjęcia lokalne są rozpoznawane przy wznowieniu etapu obrazów. Cache i checkpoint można usunąć, aby wymusić pobranie od początku.
 
 ## Testy i lint
 
@@ -173,12 +174,12 @@ python scraper/run.py
 
 Komenda uruchamia kolejno pobieranie danych i zdjęć oraz wypisuje czas obu etapów i łączny. Domyślnie korzysta z 10 wątków i istniejącego cache. Liczbę wątków zmienia `SCRAPER_WORKERS`; wspólny limit nadal wynosi 2 zapytania/s. Kategorie i dobieranie dodatkowych zdjęć są obsługiwane kolejno.
 
-Świeży test bez usuwania poprzednich danych:
+Świeży przebieg z pustym cache, bez usuwania poprzednich wyników:
 
 ```powershell
 python scraper/run.py --fresh
 ```
 
-Wariant `--fresh` zapisuje HTML, JSON, zdjęcia, raporty i ZIP w nowym katalogu `scraper/cache/run-*`, wyświetlanym przy uruchomieniu. Te wyniki są poza Git. Zwykły przebieg zapisuje wyniki zgodnie z konfiguracją, domyślnie w `scraper-results/`.
+`--fresh` używa stałego stanu `scraper/cache/fresh-run/`: pierwsze wywołanie zaczyna z pustym cache HTML i osobnym checkpointem `products-progress.json`, a kolejne wywołanie `--fresh` wznawia ten sam przebieg po przerwaniu. Wyniki JSON i zdjęcia pozostają w skonfigurowanym katalogu, domyślnie `scraper-results/`. Po pełnym sukcesie pobierania danych i zdjęć stan fresh-run jest usuwany. Aby jawnie porzucić niedokończony przebieg i zacząć od zera, użyj `python scraper/run.py --restart-fresh`; usuwa on także wyłącznie checkpoint fresh-run. Zwykłe `python scraper/run.py` używa domyślnego cache i checkpointu `scraper-results/products-progress.json`; nie współdzieli ich z trybem fresh.
 
 Kod 1 etapu danych z nowo zapisanym JSON-em oznacza częściowy eksport i nie blokuje zdjęć. Raport odrzuconych produktów pozostaje do sprawdzenia. Brak nowego JSON-a przerywa przebieg. Końcowy kod 0 potwierdza spełnienie wymagań zdjęć dla wyeksportowanych produktów, także gdy część produktów odrzucono wcześniej.
