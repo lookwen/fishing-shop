@@ -1,0 +1,7 @@
+**
+!shop/
+!shop/Dockerfile
+!shop/apache-local.conf
+!shop/configure-local-shop.php
+!deploy/
+!deploy/init-shop.sh

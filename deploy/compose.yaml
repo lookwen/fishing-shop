@@ -1,7 +1,7 @@
-
 services:
   db:
-    image: mysql:8.0
+    image: mysql:8.0.46
+    platform: linux/amd64
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Ustaw MYSQL_ROOT_PASSWORD w .env}
@@ -10,32 +10,71 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Ustaw MYSQL_PASSWORD w .env}
     volumes:
       - db_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$$MYSQL_PASSWORD" mysql --protocol=TCP --host=127.0.0.1
+          --user="$$MYSQL_USER" --database="$$MYSQL_DATABASE" --execute='SELECT 1'
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
+
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
 
   shop:
-    image: prestashop/prestashop:8.2-apache
+    build:
+      context: ..
+      dockerfile: shop/Dockerfile
+    platform: linux/amd64
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
     environment:
       DB_SERVER: db
       DB_NAME: ${MYSQL_DATABASE:-prestashop}
       DB_USER: ${MYSQL_USER:-prestashop}
       DB_PASSWD: ${MYSQL_PASSWORD:?Ustaw MYSQL_PASSWORD w .env}
       PS_INSTALL_AUTO: "1"
-      PS_DOMAIN: ${PS_DOMAIN:-localhost:8080}
+      PS_DOMAIN: localhost:8443
+      PS_ENABLE_SSL: "1"
       PS_FOLDER_ADMIN: admin-dev
       PS_FOLDER_INSTALL: install-dev
       ADMIN_MAIL: ${ADMIN_MAIL:-admin@example.com}
       ADMIN_PASSWD: ${ADMIN_PASSWD:?Ustaw ADMIN_PASSWD w .env}
       PS_LANGUAGE: pl
       PS_COUNTRY: PL
-      PS_HANDLE_DYNAMIC_DOMAIN: "1"
     volumes:
       - shop_data:/var/www/html
+      - shop_tls:/etc/apache2/local-tls
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          status=$$(curl --silent --show-error --fail --location --max-redirs 3
+          --proto-redir '=https' --noproxy '*' --max-time 8
+          --cacert /etc/apache2/local-tls/localhost.crt
+          --connect-to localhost:8443:127.0.0.1:443
+          --output /dev/null --write-out '%{http_code}' https://localhost:8443/)
+          && [ "$$status" = 200 ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 5m
 
 volumes:
   db_data:
   shop_data:
+  shop_tls:
