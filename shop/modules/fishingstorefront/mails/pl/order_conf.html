@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Potwierdzenie zamówienia</title></head>
+<body>
+  <h1>Potwierdzenie zamówienia {order_name}</h1>
+  <p>Dziękujemy za zamówienie, {firstname} {lastname}!</p>
+  <p>Data zamówienia: {date}<br>Przewoźnik: {carrier}<br>Metoda płatności: {payment}</p>
+  <table>
+    <thead><tr><th>Kod</th><th>Produkt</th><th>Cena jednostkowa</th><th>Ilość</th><th>Wartość</th></tr></thead>
+    <tbody>{products}{discounts}</tbody>
+  </table>
+  <p>Produkty: {total_products}<br>Dostawa: {total_shipping}<br>Razem brutto: {total_paid}</p>
+  <p>Adres dostawy: {delivery_address1} {delivery_address2}, {delivery_postal_code} {delivery_city}</p>
+  <p><a href="{history_url}">Sprawdź historię zamówień</a> lub <a href="{guest_tracking_url}">sprawdź zamówienie gościa</a>.</p>
+</body>
+</html>

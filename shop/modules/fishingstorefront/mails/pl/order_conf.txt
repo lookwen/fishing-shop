@@ -1,0 +1,17 @@
+Potwierdzenie zamówienia {order_name}
+
+Dziękujemy za zamówienie, {firstname} {lastname}!
+Data zamówienia: {date}
+Przewoźnik: {carrier}
+Metoda płatności: {payment}
+
+{products_txt}
+{discounts_txt}
+
+Produkty: {total_products}
+Dostawa: {total_shipping}
+Razem brutto: {total_paid}
+Adres dostawy: {delivery_address1} {delivery_address2}, {delivery_postal_code} {delivery_city}
+
+Historia zamówień: {history_url}
+Śledzenie zamówienia gościa: {guest_tracking_url}

@@ -33,7 +33,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml cp shop:/etc/apache
 
 Certyfikat jest ważny 365 dni od wygenerowania. Klucz prywatny pozostaje w wolumenie `shop_tls`. PrestaShop wysyła pocztę na `mailpit:1025` w sieci Compose. W panelu administracyjnym, w sekcji **Zaawansowane → E-mail**, możesz wysłać wiadomość testową i odczytać ją w Mailpit.
 
-## Inicjalizacja katalogu
+## Inicjalizacja sklepu i katalogu
 
 Na komputerze uruchamiającym import potrzebujesz Pythona 3.10 lub nowszego i istniejących zależności scrapera. Zainstaluj je jednorazowo poleceniem `python -m pip install -r scraper/requirements.txt`.
 
@@ -43,11 +43,18 @@ Po uruchomieniu sklepu wykonaj w katalogu głównym repozytorium:
 python deploy/init-catalog.py
 ```
 
-Skrypt sprawdza `scraper-results/products.json` według schematu scrapera, przygotowuje zdjęcia i przekazuje katalog do działającego kontenera `shop`. Kategorie zachowują źródłową hierarchię i przypisania, a gałęzie bez produktów są nieaktywne. Po udanym imporcie skrypt usuwa rozpoznane produkty demonstracyjne instalatora. Produkty powiązane z zamówieniami zachowuje i zgłasza w konsoli.
+Ta komenda konfiguruje polski sklep i checkout, sprawdza `scraper-results/products.json` według schematu scrapera, przygotowuje zdjęcia i importuje katalog do kontenera `shop`. Konfiguracja nie wymaga logowania do panelu administracyjnego. Kategorie zachowują źródłową hierarchię i przypisania, a gałęzie bez produktów są nieaktywne. Po udanym imporcie skrypt usuwa rozpoznane produkty demonstracyjne instalatora, ustawia menu na aktywne kategorie i odświeża indeks wyszukiwania. Produkty demonstracyjne powiązane z zamówieniami ukrywa i zachowuje w historii.
 
 Ponowne uruchomienie aktualizuje rekordy po identyfikatorach źródłowych i przypisuje zdjęcia po adresach URL w obrębie produktu. Import przywraca deterministyczny stan magazynowy od 0 do 10 sztuk, więc ponowne uruchomienie zastępuje ręczne zmiany ilości. Dla obecnego pliku 92 z 915 produktów otrzymują stan 0 i są niedostępne do zamówienia. Warianty nie są częścią tego importu W3.
 
-Domyślną walutą sklepu musi być PLN, a podatki muszą być włączone. PrestaShop przechowuje cenę netto wyliczoną z ceny brutto i stawki VAT. Przy braku stawki skrypt zachowuje podaną kwotę bez naliczania podatku i wykazuje taki rekord w raporcie. Obecny eksport podaje stawkę 23% dla wszystkich produktów. Wagi z eksportu są w kilogramach. Przy braku wagi PrestaShop używa technicznej wartości `0`, która oznacza brak wartości i jest zliczana w raporcie. W danych źródłowych wagę ma 17 produktów.
+Inicjalizacja ustawia PLN i włącza podatki. PrestaShop przechowuje cenę netto wyliczoną z ceny brutto i stawki VAT. Przy braku stawki skrypt zachowuje podaną kwotę bez naliczania podatku i wykazuje taki rekord w raporcie. Obecny eksport podaje stawkę 23% dla wszystkich produktów. Wagi z eksportu są w kilogramach. Przy braku wagi PrestaShop używa technicznej wartości `0`, która oznacza brak wartości i jest zliczana w raporcie. W danych źródłowych wagę ma 17 produktów.
+
+### Witryna i zakup
+
+Sklep ustawia język polski, kraj Polska i walutę PLN. Stopka zawiera strony O sklepie, Regulamin, Polityka prywatności, Dostawa i Formy płatności oraz informację o cookies. Wiadomości rejestracyjne i potwierdzenia zamówień trafiają do Mailpit.
+
+- Dostępne są płatność przy odbiorze i przelew tradycyjny. W `deploy/.env` ustaw razem `BANK_WIRE_OWNER` (odbiorca), `BANK_WIRE_DETAILS` (numer konta i instrukcja) oraz `BANK_WIRE_ADDRESS` (adres odbiorcy). Puste pola włączają instrukcję demonstracyjną. Po zmianie wartości odtwórz kontener poleceniem startowym i ponów inicjalizację.
+- Przesyłka standardowa kosztuje 16,90 zł, a ekspresowa 24,90 zł. Dostawa jest bezpłatna od 2 000,01 zł brutto wartości produktów i niedostępna po przekroczeniu 50 kg.
 
 ### Zdjęcia
 
@@ -70,6 +77,33 @@ Obecny eksport ma 918 unikalnych odkrytych adresów produktów i 915 poprawnych 
 Poprzedni zapis w repozytorium miał 916 poprawnych rekordów z 919 odkrytych. Powtórne przejście po menu i stronicowaniu z lokalnego cache odczytało 105 stron, 104 kategorie i 917 ofert. W porównaniu z bieżącym plikiem dwie oferty były tylko w cache, a trzy tylko w eksporcie. Obie listy łącznie obejmowały 920 identyfikatorów. W bieżącym eksporcie 12 kategorii głównych ma co najmniej dwie bezpośrednie podkategorie z produktami.
 
 Wyniki opisują katalog widoczny w zapisanych przebiegach scrapera. Potwierdzenie wyjątku W3 od progu 1000 wymaga pełnej aktualnej listy ze źródła, np. kompletnej mapy produktów, albo potwierdzenia liczby ofert przez Flyhouse. Inicjalizacja importuje 915 poprawnych rekordów i zgłasza liczbę poniżej progu.
+
+## Weryfikacja witryny i dostawy
+
+Na działającym lokalnym sklepie po inicjalizacji zainstaluj Node.js (co najmniej 18), zależności testów i Chromium:
+
+```sh
+npm --prefix tests ci
+cd tests
+npx playwright install chromium
+cd ..
+```
+
+Następnie uruchom `npm --prefix tests test`. Domyślne adresy to `https://localhost:8443/` oraz `http://localhost:8025`. Możesz je zmienić zmiennymi `SHOP_URL` i `MAILPIT_URL`. Jeśli masz już Chrome lub Edge, możesz zamiast instalowania Chromium ustawić `PLAYWRIGHT_CHANNEL` odpowiednio na `chrome` lub `msedge`. Testy sprawdzają katalog, wyszukiwanie konkretnego produktu, CMS i cookies, rejestrację i logowanie, koszyk, wybór dostawy oraz płatności, historię i oba maile. Test zakupu tworzy konto i zamówienie w bazie oraz zużywa jedną sztukę produktu. Raport HTML trafia do `tests/playwright-report/`, a zrzuty po błędzie do `tests/test-results/`.
+
+Test reguł dostawy jest osobnym testem PHP wykonywanym na zainicjalizowanym sklepie. Sprawdza m.in. koszyki o wartości 2 000,00 i 2 000,01 zł oraz wadze 50 i 50,000001 kg, w tym odrzucenie przewoźnika zapasowego. Test wycofuje tymczasowe rekordy po zakończeniu.
+
+```powershell
+Get-Content -Raw deploy/tests/storefront_shipping.php |
+  docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T --user www-data shop php
+```
+
+### Wynik próby W3 i ograniczenia
+
+- Próba z 25.11.2026 na świeżych wolumenach zapisała 915 produktów, 104 kategorie i 965 zdjęć z opublikowanego ZIP-a, bez odrzuconych produktów. 50 produktów otrzymało dwa zdjęcia, a 92 miały zerowy stan magazynowy. Próg 1 000 wymaga potwierdzenia wyjątku dotyczącego wielkości katalogu źródłowego.
+- Oba scenariusze Playwright przeszły w 9,3 s w lokalnym Chrome w trybie headless. Test PHP potwierdził pięć przypadków dostawy, w tym opłaty na granicy 2 000 zł i blokadę koszyka ważącego ponad 50 kg.
+- Git nadal śledzi 20 próbek w `scraper-results/sample-images/`. Zgodność z wymaganiem przechowywania zdjęć poza repozytorium wymaga usunięcia tych próbek z Git.
+- W tej próbie komenda inicjalizacji zajęła 9 min 24 s, w tym pobranie ZIP-a, przygotowanie plików, import i indeksowanie. Compose osiągnął stan `healthy` na świeżych wolumenach przy wcześniej pobranych obrazach bazowych. Czasu komendy startowej nie mierzono. W PowerShell czas samej inicjalizacji zmierzysz przez `Measure-Command { python deploy/init-catalog.py | Out-Host }`.
 
 ## Zatrzymanie
 

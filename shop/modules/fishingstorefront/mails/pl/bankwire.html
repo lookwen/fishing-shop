@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><title>Instrukcja przelewu bankowego</title></head>
+<body>
+  <h1>Instrukcja przelewu bankowego</h1>
+  <p>Zamówienie {order_name} oczekuje na płatność.</p>
+  <dl>
+    <dt>Kwota</dt><dd>{total_paid}</dd>
+    <dt>Odbiorca</dt><dd>{bankwire_owner}</dd>
+    <dt>Dane przelewu</dt><dd>{bankwire_details}</dd>
+    <dt>Adres</dt><dd>{bankwire_address}</dd>
+    <dt>Tytuł przelewu</dt><dd>{order_name}</dd>
+  </dl>
+  <p><a href="{history_url}">Sprawdź historię zamówień</a>.</p>
+</body>
+</html>
