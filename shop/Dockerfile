@@ -6,6 +6,7 @@ RUN command -v openssl && command -v curl \
 
 COPY shop/apache-local.conf /etc/apache2/sites-available/fishing-shop.conf
 COPY shop/configure-local-shop.php /usr/local/share/fishing-shop/configure-local-shop.php
+COPY shop/import-catalog.php /usr/local/share/fishing-shop/import-catalog.php
 COPY --chmod=755 deploy/init-shop.sh /tmp/init-scripts/50-fishing-shop
 
 RUN sed -i 's/\r$//' /tmp/init-scripts/50-fishing-shop \

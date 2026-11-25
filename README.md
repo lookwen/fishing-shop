@@ -33,16 +33,43 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml cp shop:/etc/apache
 
 Certyfikat jest ważny 365 dni od wygenerowania. Klucz prywatny pozostaje w wolumenie `shop_tls`. PrestaShop wysyła pocztę na `mailpit:1025` w sieci Compose. W panelu administracyjnym, w sekcji **Zaawansowane → E-mail**, możesz wysłać wiadomość testową i odczytać ją w Mailpit.
 
-## Katalog i konfiguracja sklepu
+## Inicjalizacja katalogu
 
-Do próbnego importu zapisz poniższy plik CSV w UTF-8 i w panelu wybierz **Zaawansowane → Importuj** oraz encję **Produkty**. Ustaw separator `;`, pomiń pierwszy wiersz, przypisz kolumny do nazwy, aktywności, ceny netto i ilości, po czym uruchom import. Produkt można sprawdzić w **Katalog → Produkty**, a ustawienia witryny zmienić w **Parametry sklepu**.
+Na komputerze uruchamiającym import potrzebujesz Pythona 3.10 lub nowszego i istniejących zależności scrapera. Zainstaluj je jednorazowo poleceniem `python -m pip install -r scraper/requirements.txt`.
 
-```csv
-Nazwa;Aktywny;Cena netto;Ilość
-Przynęta testowa;1;12.50;3
+Po uruchomieniu sklepu wykonaj w katalogu głównym repozytorium:
+
+```sh
+python deploy/init-catalog.py
 ```
 
-Eksport scrapera `scraper-results/products.json` ma osobny schemat opisany w [dokumentacji scrapera](scraper/README.md). Do zasilenia nim katalogu potrzebny jest etap importu danych.
+Skrypt sprawdza `scraper-results/products.json` według schematu scrapera, przygotowuje zdjęcia i przekazuje katalog do działającego kontenera `shop`. Kategorie zachowują źródłową hierarchię i przypisania, a gałęzie bez produktów są nieaktywne. Po udanym imporcie skrypt usuwa rozpoznane produkty demonstracyjne instalatora. Produkty powiązane z zamówieniami zachowuje i zgłasza w konsoli.
+
+Ponowne uruchomienie aktualizuje rekordy po identyfikatorach źródłowych i przypisuje zdjęcia po adresach URL w obrębie produktu. Import przywraca deterministyczny stan magazynowy od 0 do 10 sztuk, więc ponowne uruchomienie zastępuje ręczne zmiany ilości. Dla obecnego pliku 92 z 915 produktów otrzymują stan 0 i są niedostępne do zamówienia. Warianty nie są częścią tego importu W3.
+
+Domyślną walutą sklepu musi być PLN, a podatki muszą być włączone. PrestaShop przechowuje cenę netto wyliczoną z ceny brutto i stawki VAT. Przy braku stawki skrypt zachowuje podaną kwotę bez naliczania podatku i wykazuje taki rekord w raporcie. Obecny eksport podaje stawkę 23% dla wszystkich produktów. Wagi z eksportu są w kilogramach. Przy braku wagi PrestaShop używa technicznej wartości `0`, która oznacza brak wartości i jest zliczana w raporcie. W danych źródłowych wagę ma 17 produktów.
+
+### Zdjęcia
+
+Ustaw `CATALOG_IMAGES_ARCHIVE_URL` w `deploy/.env` na bezpośredni adres ZIP-a `product-images.zip` z GitHub Releases albo przekaż go przez `--archive-url`. ZIP używa ścieżek `images/<identyfikator>.jpg` zgodnych z [eksportem scrapera](scraper/README.md#pobieranie-zdjęć). Import wykorzystuje zweryfikowane pliki z `deploy/cache/catalog/images/` i `scraper-results/images/`. W razie braków korzysta z archiwum, a następnie z adresów źródłowych w JSON-ie. Pobieranie respektuje `robots.txt` i limit 2 żądań/s. Kontakt w nagłówku User-Agent ustaw w `scraper/config/.env` przez `SCRAPER_USER_AGENT`.
+
+Skrypt wymaga co najmniej jednego zdjęcia na produkt oraz dwóch dla co najmniej 50 produktów. Oryginały zapisywane w sklepie są JPEG-ami o dłuższym boku 800–1600 px i rozmiarze do 300 000 bajtów. PrestaShop dostaje też miniatury potrzebne do wyświetlania katalogu. Pełen zestaw zdjęć pozostaje w ignorowanych lokalnych katalogach, w wolumenie sklepu oraz w opcjonalnym archiwum wydania.
+
+Konsola podaje liczbę przygotowanych zdjęć oraz liczniki rekordów utworzonych, zaktualizowanych i odrzuconych przez PrestaShop. Błędy wskazują etap lub źródłowy identyfikator produktu. Brak wymaganych zdjęć przerywa inicjalizację przed zapisem w sklepie. Błędy zapisu kończą komendę kodem 1. Po usunięciu przyczyny można uruchomić tę samą komendę i dokończyć zapis.
+
+### Liczba produktów
+
+Obecny eksport ma 918 unikalnych odkrytych adresów produktów i 915 poprawnych rekordów gotowych do importu. [Raport scrapera](scraper-results/products-report.json) wyjaśnia różnicę:
+
+| Oferta | Przyczyna odrzucenia |
+| --- | --- |
+| Linka Scientific Anglers Sonar Titan | Strona zakończyła się odpowiedzią HTTP 404. |
+| Fly Dip Floatant Revolution | Brak zdjęcia w zebranych danych. |
+| Orvis Co T-shirt | Brak opisu, ceny, waluty i zdjęcia w zebranych danych. |
+
+Poprzedni zapis w repozytorium miał 916 poprawnych rekordów z 919 odkrytych. Powtórne przejście po menu i stronicowaniu z lokalnego cache odczytało 105 stron, 104 kategorie i 917 ofert. W porównaniu z bieżącym plikiem dwie oferty były tylko w cache, a trzy tylko w eksporcie. Obie listy łącznie obejmowały 920 identyfikatorów. W bieżącym eksporcie 12 kategorii głównych ma co najmniej dwie bezpośrednie podkategorie z produktami.
+
+Wyniki opisują katalog widoczny w zapisanych przebiegach scrapera. Potwierdzenie wyjątku W3 od progu 1000 wymaga pełnej aktualnej listy ze źródła, np. kompletnej mapy produktów, albo potwierdzenia liczby ofert przez Flyhouse. Inicjalizacja importuje 915 poprawnych rekordów i zgłasza liczbę poniżej progu.
 
 ## Zatrzymanie
 
