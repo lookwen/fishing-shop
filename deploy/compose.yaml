@@ -56,6 +56,9 @@ services:
       ADMIN_PASSWD: ${ADMIN_PASSWD:?Ustaw ADMIN_PASSWD w .env}
       PS_LANGUAGE: pl
       PS_COUNTRY: PL
+      BANK_WIRE_OWNER: ${BANK_WIRE_OWNER:-}
+      BANK_WIRE_DETAILS: ${BANK_WIRE_DETAILS:-}
+      BANK_WIRE_ADDRESS: ${BANK_WIRE_ADDRESS:-}
     volumes:
       - shop_data:/var/www/html
       - shop_tls:/etc/apache2/local-tls

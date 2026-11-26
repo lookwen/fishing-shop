@@ -3,5 +3,11 @@
 !shop/Dockerfile
 !shop/apache-local.conf
 !shop/configure-local-shop.php
+!shop/import-catalog.php
+!shop/configure-storefront.php
+!shop/storefront-pages.php
+!shop/modules/
+!shop/modules/fishingstorefront/
+!shop/modules/fishingstorefront/**
 !deploy/
 !deploy/init-shop.sh

@@ -1,0 +1,6 @@
+Witaj, {firstname} {lastname}!
+
+Dziękujemy za założenie konta w sklepie {shop_name}.
+Adres e-mail do logowania: {email}
+
+Przejdź do sklepu: {shop_url}

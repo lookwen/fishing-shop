@@ -250,11 +250,16 @@ function removeDemoProducts(Db $db, int $shop): int
         ) {
             continue;
         }
+        $product = new Product((int) $row['id_product'], false, null, $shop);
         if ($row['ordered']) {
-            fwrite(STDERR, "Demo product {$row['reference']} preserved because it has an order.\n");
+            if ($product->active) {
+                $product->active = false;
+                requireResult($product->update(), "Cannot disable {$row['reference']}.");
+            }
+            fwrite(STDERR, "Demo product {$row['reference']} hidden and preserved for order history.\n");
             continue;
         }
-        requireResult((new Product((int) $row['id_product'], false, null, $shop))->delete(), "Cannot delete {$row['reference']}.");
+        requireResult($product->delete(), "Cannot delete {$row['reference']}.");
         ++$removed;
     }
     return $removed;
@@ -269,47 +274,8 @@ function importCatalog(Db $db, string $directory): void
     $context->shop = new Shop($shop);
     $language = new Language((int) Configuration::get('PS_LANG_DEFAULT'));
     $context->language = $language;
-    $plnId = (int) Currency::getIdByIsoCode('PLN', 0, true, true);
-    if ($plnId > 0) {
-        $pln = new Currency($plnId, null, $shop);
-        $pln->deleted = false;
-    } else {
-        $pln = new Currency(null, null, $shop);
-        $pln->iso_code = 'PLN';
-        $pln->numeric_iso_code = '985';
-        $pln->iso_code_num = '985';
-        $pln->precision = 2;
-        $pln->conversion_rate = 1;
-
-        $names = $symbols = [];
-        foreach (Language::getIDs() as $languageId) {
-            $names[(int) $languageId] = 'Polski złoty';
-            $symbols[(int) $languageId] = 'zł';
-        }
-        $pln->name = $names;
-        $pln->symbol = $symbols;
-        $pln->pattern = (new Currency(
-            (int) Configuration::get('PS_CURRENCY_DEFAULT'),
-            null,
-            $shop
-        ))->getLocalizedPatterns();
-        requireResult($pln->add(), 'Cannot create PLN currency.');
-        $plnId = (int) $pln->id;
-    }
-    if (!$pln->active) {
-        $pln->active = true;
-        requireResult($pln->update(), 'Cannot activate PLN currency.');
-    }
-    if (!$pln->isInstalled($pln->id, $shop)) {
-        requireResult($pln->associateTo($shop), 'Cannot enable PLN for the default shop.');
-    }
-    if ((int) Configuration::get('PS_CURRENCY_DEFAULT') !== $plnId) {
-        requireResult(
-            Configuration::updateValue('PS_CURRENCY_DEFAULT', $plnId),
-            'Cannot set PLN as the default store currency.'
-        );
-    }
-    $context->currency = $pln;
+    $context->currency = new Currency((int) Configuration::get('PS_CURRENCY_DEFAULT'), null, $shop);
+    requireResult($context->currency->iso_code === 'PLN', 'Initialize the Polish storefront first.');
     $country = (int) Country::getByIso('PL');
     $context->country = new Country($country);
     $languages = Language::getIDs(false, $shop);
@@ -407,10 +373,67 @@ function importCatalog(Db $db, string $directory): void
     $counts['demo_removed'] = 0;
     if (!$counts['failed']) {
         $counts['demo_removed'] = removeDemoProducts($db, $shop);
+        configureCatalogNavigation($db, $shop, $categories);
     }
     echo json_encode($counts, JSON_THROW_ON_ERROR) . PHP_EOL;
     requireResult(Search::indexation(false), 'Cannot update the product search index.');
     requireResult(!$counts['failed'], 'One or more products failed. Rerun after correcting the reported errors.');
+}
+
+function configureCatalogNavigation(Db $db, int $shop, array $categories): void
+{
+    $prefix = _DB_PREFIX_;
+    // Work from the leaves of the known installer tree to preserve any populated branch.
+    foreach ([8 => 'home-accessories', 7 => 'stationery', 5 => 'women', 4 => 'men', 9 => 'art', 6 => 'accessories', 3 => 'clothes'] as $id => $slug) {
+        $isEmptyDemoCategory = $db->getValue("SELECT c.id_category FROM `{$prefix}category` c
+            JOIN `{$prefix}category_lang` cl ON cl.id_category = c.id_category
+            WHERE c.id_category = $id AND cl.id_shop = $shop AND cl.link_rewrite = '" . pSQL($slug) . "'
+            AND NOT EXISTS (SELECT 1 FROM `{$prefix}category` child WHERE child.id_parent = c.id_category AND child.active = 1)
+            AND NOT EXISTS (SELECT 1 FROM `{$prefix}category_product` cp
+                JOIN `{$prefix}product_shop` ps ON ps.id_product = cp.id_product AND ps.id_shop = $shop AND ps.active = 1
+                WHERE cp.id_category = c.id_category)");
+        if ($isEmptyDemoCategory) {
+            $category = new Category($id, null, $shop);
+            $category->active = false;
+            requireResult($category->update(), 'Cannot hide an empty installer category.');
+        }
+    }
+
+    if ($categories) {
+        $ids = implode(',', array_map('intval', $categories));
+        $home = (int) Configuration::get('PS_HOME_CATEGORY');
+        $roots = $db->executeS("SELECT id_category FROM `{$prefix}category`
+            WHERE id_category IN ($ids) AND id_parent = $home AND active = 1 ORDER BY position, id_category");
+        requireResult($roots, 'Cannot find active catalog roots.');
+        $menuItems = array_map(static fn ($row) => 'CAT' . (int) $row['id_category'], $roots);
+        $about = (int) Configuration::get('FISHING_CMS_ABOUT');
+        if ($about) {
+            $menuItems[] = 'CMS' . $about;
+        }
+        requireResult(
+            Configuration::updateValue('MOD_BLOCKTOPMENU_ITEMS', implode(',', $menuItems)),
+            'Cannot configure catalog navigation.'
+        );
+
+        $featured = (int) $db->getValue("SELECT cp.id_category FROM `{$prefix}category_product` cp
+            JOIN `{$prefix}product_shop` ps ON ps.id_product = cp.id_product AND ps.id_shop = $shop AND ps.active = 1
+            JOIN `{$prefix}category` c ON c.id_category = cp.id_category AND c.active = 1
+            WHERE cp.id_category IN ($ids)
+            GROUP BY cp.id_category ORDER BY COUNT(*) DESC, cp.id_category");
+        if ($featured) {
+            requireResult(Configuration::updateValue('HOME_FEATURED_CAT', $featured), 'Cannot configure home page products.');
+            $module = Module::getInstanceByName('ps_featuredproducts');
+            if ($module && $module->active) {
+                $module->_clearCache('module:ps_featuredproducts/views/templates/hook/ps_featuredproducts.tpl');
+            }
+        }
+    }
+
+    // Category hooks clear the module's cached menu tree after the catalog is ready.
+    $menu = Module::getInstanceByName('ps_mainmenu');
+    if ($menu && $menu->active) {
+        $menu->hookActionObjectCategoryUpdateAfter([]);
+    }
 }
 
 try {

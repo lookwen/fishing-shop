@@ -1,0 +1,11 @@
+Instrukcja przelewu bankowego
+
+Zamówienie {order_name} oczekuje na płatność.
+
+Kwota: {total_paid}
+Odbiorca: {bankwire_owner}
+Dane przelewu: {bankwire_details}
+Adres: {bankwire_address}
+Tytuł przelewu: {order_name}
+
+Historia zamówień: {history_url}
