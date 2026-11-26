@@ -2,7 +2,9 @@
   "name": "fishing-shop-storefront-tests",
   "private": true,
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:storefront": "playwright test storefront.spec.cjs",
+    "test:checkout": "playwright test checkout.spec.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2"
