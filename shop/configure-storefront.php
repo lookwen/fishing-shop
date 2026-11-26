@@ -51,6 +51,13 @@ function storefrontCurrency(int $shop, array $languages): Currency
         ))->getLocalizedPatterns();
         storefrontCheck($pln->add(), 'Cannot create PLN currency.');
     }
+    $names = $symbols = [];
+    foreach ($languages as $languageId) {
+        $names[(int) $languageId] = 'Polski złoty';
+        $symbols[(int) $languageId] = 'zł';
+    }
+    $pln->name = $names;
+    $pln->symbol = $symbols;
     if (!$pln->active) {
         $pln->active = true;
         storefrontCheck($pln->update(), 'Cannot activate PLN currency.');
@@ -60,6 +67,13 @@ function storefrontCurrency(int $shop, array $languages): Currency
     }
     $pln->conversion_rate = 1;
     storefrontCheck($pln->update(), 'Cannot update PLN currency.');
+    foreach (Currency::getCurrencies(true, false) as $currency) {
+        if ((int) $currency->id === (int) $pln->id || !$currency->active) {
+            continue;
+        }
+        $currency->active = false;
+        storefrontCheck($currency->update(), "Cannot deactivate {$currency->iso_code} currency.");
+    }
     return $pln;
 }
 
