@@ -297,6 +297,7 @@ try {
         'PS_DETECT_COUNTRY' => 0,
         'PS_CATALOG_MODE' => 0,
         'PS_TAX' => 1,
+        'PS_INVOICE' => 1,
         'PS_WEIGHT_UNIT' => 'kg',
         'PS_CUSTOMER_CREATION_EMAIL' => 1,
         'PS_MAIL_METHOD' => Mail::METHOD_SMTP,
@@ -336,6 +337,10 @@ try {
     $carriers = storefrontCarriers($db, $shop, $country, $language, $languages);
     storefrontSettings($bankDetails);
     storefrontPayments($db, $shop, (int) $country->id, (int) $currency->id, $carriers);
+    $codState = new OrderState((int) Configuration::getGlobalValue(Ps_Cashondelivery::CONFIG_OS_CASH_ON_DELIVERY));
+    storefrontCheck(Validate::isLoadedObject($codState), 'Cash on delivery order state is missing.');
+    $codState->invoice = true;
+    storefrontCheck($codState->update(), 'Cannot enable invoices for cash on delivery orders.');
     echo "Polish storefront configured.\n";
 } catch (Throwable $error) {
     fwrite(STDERR, 'Storefront initialization failed: ' . $error->getMessage() . PHP_EOL);

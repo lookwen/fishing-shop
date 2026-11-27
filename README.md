@@ -89,7 +89,19 @@ npx playwright install chromium
 cd ..
 ```
 
-Następnie uruchom `npm --prefix tests test`. Domyślne adresy to `https://localhost:8443/` oraz `http://localhost:8025`. Możesz je zmienić zmiennymi `SHOP_URL` i `MAILPIT_URL`. Jeśli masz już Chrome lub Edge, możesz zamiast instalowania Chromium ustawić `PLAYWRIGHT_CHANNEL` odpowiednio na `chrome` lub `msedge`. Testy sprawdzają katalog, wyszukiwanie konkretnego produktu, CMS i cookies, rejestrację i logowanie, koszyk, wybór dostawy oraz płatności, historię i oba maile. Test zakupu tworzy konto i zamówienie w bazie oraz zużywa jedną sztukę produktu. Raport HTML trafia do `tests/playwright-report/`, a zrzuty po błędzie do `tests/test-results/`.
+Polecenie `npm --prefix tests test` uruchamia oba zestawy. Domyślny adres sklepu to `https://localhost:8443/` oraz `http://localhost:8025`. Możesz go zmienić zmienną `SHOP_URL`. Jeśli masz już Chrome lub Edge, możesz zamiast instalowania Chromium ustawić `PLAYWRIGHT_CHANNEL` odpowiednio na `chrome` lub `msedge`. Testy zakupu tworzą konta i zamówienia oraz zmniejszają stan magazynowy kupionych produktów.
+
+Raport HTML trafia do `tests/playwright-report/`, a zrzuty po błędzie do `tests/test-results/`. Z katalogu głównego otworzysz raport poleceniem `node tests/node_modules/playwright/cli.js show-report tests/playwright-report`.
+
+### Testy witryny (W3)
+
+Uruchom `npm --prefix tests run test:storefront`. Testy sprawdzają katalog, wyszukiwarkę, CMS i cookies oraz rejestrację, logowanie, podstawowy zakup i wiadomości. Domyślny adres Mailpit to `http://localhost:8025/`. Możesz go zmienić zmienną `MAILPIT_URL`.
+
+### Pełny zakup z fakturą VAT (W4)
+
+Uruchom `npm --prefix tests run test:checkout`. Test sprawdza dodawanie i usuwanie produktów, rejestrację klienta, wybór dostawy, płatność przy odbiorze, status zamówienia i pobranie faktury VAT. Fakturowanie włącza inicjalizacja sklepu. Test działa bez Mailpit.
+
+### Test reguł dostawy
 
 Test reguł dostawy jest osobnym testem PHP wykonywanym na zainicjalizowanym sklepie. Sprawdza m.in. koszyki o wartości 2 000,00 i 2 000,01 zł oraz wadze 50 i 50,000001 kg, w tym odrzucenie przewoźnika zapasowego. Test wycofuje tymczasowe rekordy po zakończeniu.
 

@@ -1,13 +1,18 @@
 const { defineConfig } = require('@playwright/test');
 
+const shopURL = new URL(process.env.SHOP_URL || 'https://localhost:8443/');
+if (!shopURL.pathname.endsWith('/')) shopURL.pathname += '/';
+
 module.exports = defineConfig({
   testDir: '.',
   workers: 1,
-  timeout: 120_000,
+  timeout: 180_000,
+  globalTimeout: 270_000,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: process.env.SHOP_URL || 'https://localhost:8443/',
+    baseURL: shopURL.href,
     channel: process.env.PLAYWRIGHT_CHANNEL,
+    headless: true,
     ignoreHTTPSErrors: true,
     actionTimeout: 10_000,
     screenshot: 'only-on-failure',
