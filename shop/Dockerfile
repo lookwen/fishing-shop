@@ -7,6 +7,7 @@ RUN command -v openssl && command -v curl \
 COPY shop/apache-local.conf /etc/apache2/sites-available/fishing-shop.conf
 COPY shop/configure-local-shop.php /usr/local/share/fishing-shop/configure-local-shop.php
 COPY shop/import-catalog.php /usr/local/share/fishing-shop/import-catalog.php
+COPY shop/configure-d3.php shop/d3-demo.json /usr/local/share/fishing-shop/
 COPY shop/configure-storefront.php shop/storefront-pages.php /usr/local/share/fishing-shop/
 COPY shop/modules/fishingstorefront /usr/local/share/fishing-shop/fishingstorefront
 COPY --chmod=755 deploy/init-shop.sh /tmp/init-scripts/50-fishing-shop

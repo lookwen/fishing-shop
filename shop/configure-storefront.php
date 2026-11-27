@@ -117,7 +117,8 @@ function storefrontPages(Db $db, int $shop, array $languages): void
     $footer = storefrontModule('ps_linklist');
     $hookId = (int) Hook::getIdByName('displayFooter');
     $blockId = (int) Configuration::get('FISHING_FOOTER_BLOCK');
-    if (!$blockId) {
+    $firstSetup = !$blockId;
+    if ($firstSetup) {
         $blockId = (int) $db->getValue('SELECT id_link_block FROM ' . _DB_PREFIX_ . "link_block
             WHERE id_hook = $hookId AND JSON_CONTAINS(content, '[\"1\",\"2\",\"3\",\"4\",\"5\"]', '$.cms')");
     }
@@ -137,16 +138,19 @@ function storefrontPages(Db $db, int $shop, array $languages): void
     $footer->hookActionGeneralPageSave();
 
     storefrontModule('ps_mainmenu');
-    $home = (int) Configuration::get('PS_HOME_CATEGORY');
     $privacy = array_fill_keys($languages, 'Dane testowe służą do obsługi konta, zamówień i kontaktu ze sklepem.');
-    storefrontSettings([
+    $settings = [
         'FISHING_FOOTER_BLOCK' => (int) $block->id,
         'PS_CONDITIONS' => 1,
         'PS_CONDITIONS_CMS_ID' => $ids['TERMS'],
-        'MOD_BLOCKTOPMENU_ITEMS' => 'CAT' . $home . ',CMS' . $ids['ABOUT'],
         'CUSTPRIV_MSG_AUTH' => $privacy,
         'NW_CONDITIONS' => array_fill_keys($languages, 'Newsletter jest opcjonalny. Szczegóły znajdziesz w Polityce prywatności sklepu.'),
-    ]);
+    ];
+    if ($firstSetup) {
+        // The catalog import configures this menu once its categories are available.
+        $settings['MOD_BLOCKTOPMENU_ITEMS'] = 'CAT' . (int) Configuration::get('PS_HOME_CATEGORY') . ',CMS' . $ids['ABOUT'];
+    }
+    storefrontSettings($settings);
 }
 
 function storefrontCarriers(Db $db, int $shop, Country $country, int $language, array $languages): array
@@ -309,6 +313,7 @@ try {
     ]);
     storefrontPages($db, $shop, $languages);
     storefrontModule('ps_searchbar');
+    storefrontModule('ps_facetedsearch');
     storefrontModule('ps_featuredproducts');
     foreach ([
         'ps_banner', 'ps_imageslider', 'ps_customtext', 'ps_contactinfo', 'ps_socialfollow',
@@ -322,9 +327,11 @@ try {
 
     $directory = _PS_MODULE_DIR_ . 'fishingstorefront';
     storefrontCheck(is_dir($directory) || mkdir($directory), 'Cannot create storefront module directory.');
-    foreach (['fishingstorefront.php', 'cookies.tpl'] as $file) {
+    foreach (['fishingstorefront.php', 'cookies.tpl', 'lowest-price.tpl', 'layout-left-column.tpl', 'catalog-sidebar-link.tpl'] as $file) {
         storefrontCheck(copy(__DIR__ . "/fishingstorefront/$file", "$directory/$file"), "Cannot copy $file.");
     }
+    $searchCompileId = $context->shop->theme->getName() . "$directory/layout-left-column.tpl";
+    $context->smarty->clearCompiledTemplate(null, $searchCompileId);
     $mailDirectory = "$directory/mails/pl";
     storefrontCheck(is_dir($mailDirectory) || mkdir($mailDirectory, 0775, true), 'Cannot create the Polish mail directory.');
     foreach (['account', 'order_conf', 'bankwire'] as $template) {
@@ -333,7 +340,11 @@ try {
             storefrontCheck(copy(__DIR__ . "/fishingstorefront/mails/pl/$file", "$mailDirectory/$file"), "Cannot copy $file.");
         }
     }
-    storefrontCheck(storefrontModule('fishingstorefront')->registerStorefrontHooks(), 'Cannot register storefront hooks.');
+    $wasInstalled = Module::isInstalled('fishingstorefront');
+    $storefront = storefrontModule('fishingstorefront');
+    if ($wasInstalled) {
+        storefrontCheck($storefront->registerStorefrontHooks(), 'Cannot register storefront hooks.');
+    }
     $carriers = storefrontCarriers($db, $shop, $country, $language, $languages);
     storefrontSettings($bankDetails);
     storefrontPayments($db, $shop, (int) $country->id, (int) $currency->id, $carriers);
