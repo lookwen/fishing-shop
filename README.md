@@ -120,7 +120,7 @@ Get-Content -Raw deploy/tests/storefront_shipping.php |
 
 - Próba z 25.11.2026 na świeżych wolumenach zapisała 915 produktów, 104 kategorie i 965 zdjęć z opublikowanego ZIP-a, bez odrzuconych produktów. 50 produktów otrzymało dwa zdjęcia, a 92 miały zerowy stan magazynowy. Próg 1 000 wymaga potwierdzenia wyjątku dotyczącego wielkości katalogu źródłowego.
 - Oba scenariusze Playwright przeszły w 9,3 s w lokalnym Chrome w trybie headless. Test PHP potwierdził pięć przypadków dostawy, w tym opłaty na granicy 2 000 zł i blokadę koszyka ważącego ponad 50 kg.
-- Git nadal śledzi 20 próbek w `scraper-results/sample-images/`. Zgodność z wymaganiem przechowywania zdjęć poza repozytorium wymaga usunięcia tych próbek z Git.
+- Repozytorium zawiera 20 przykładowych zdjęć w `scraper-results/sample-images/`, zgodnie z dopuszczonym limitem próbek. Pełny zbiór zdjęć pozostaje poza Git.
 - W tej próbie komenda inicjalizacji zajęła 9 min 24 s, w tym pobranie ZIP-a, przygotowanie plików, import i indeksowanie. Compose osiągnął stan `healthy` na świeżych wolumenach przy wcześniej pobranych obrazach bazowych. Czasu komendy startowej nie mierzono. W PowerShell czas samej inicjalizacji zmierzysz przez `Measure-Command { python deploy/init-catalog.py | Out-Host }`.
 
 ## Zatrzymanie
@@ -130,3 +130,59 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml down
 ```
 
 Wolumeny `db_data`, `shop_data` i `shop_tls` zachowują dane bazy, pliki sklepu i certyfikat na kolejny start.
+
+## Backup i odtwarzanie (D4)
+
+Kopia obejmuje zrzut bazy MySQL, pliki sklepu ze zdjęciami i konfiguracją oraz certyfikat z kluczem. Cache i logi aplikacji są pomijane. Podczas wykonywania kopii skrypt zatrzymuje tylko usługę `shop`, aby zamówienia i pliki nie zmieniały się w trakcie zapisu; na końcu ponownie ją uruchamia, również po błędzie. Baza musi działać.
+
+```powershell
+python deploy/backup.py
+```
+
+Komenda wypisuje katalog `deploy/backups/backup-*`. Kopia zawiera `database.sql`, `shop.tar.gz`, `tls.tar.gz`, `settings.json` i manifest z sumami SHA-256 oraz licznikami rekordów. Nie nadpisuje istniejącej kopii. Backup jest prywatny: może zawierać dane klientów, hasła konfiguracji i klucz certyfikatu. `deploy/backups/` jest wykluczony z Git; nie publikuj tych kopii w Releases.
+
+Do repo trafia wyłącznie `deploy/shop-settings.json`: jawna lista dozwolonych ustawień sklepu, podatków i dostawy. Backup aktualizuje ten eksport, pomijając dane kont, pocztę, hasła, klucze API i dane bankowe. Pozostała odtwarzalna konfiguracja znajduje się w skryptach inicjalizacji oraz Compose. Same publiczne ustawienia można zastosować na działającym sklepie:
+
+```powershell
+python deploy/restore.py --settings-only
+```
+
+### Odtworzenie na czystym środowisku
+
+Przygotuj `deploy/.env.restore` na podstawie `.env.example`, ustaw lokalne hasła i, gdy obecny sklep działa, inne wolne porty, np.:
+
+```dotenv
+SHOP_HTTP_PORT=18080
+SHOP_HTTPS_PORT=18443
+MAILPIT_HTTP_PORT=18025
+```
+
+`deploy/.env.restore` jest ignorowany przez Git. Nowe hasło bazy może różnić się od hasła w kopii: skrypt dostosuje połączenie PrestaShop do docelowej konfiguracji, zachowując pozostałe klucze aplikacji.
+
+Wskaż rzeczywisty katalog kopii i nową nazwę projektu:
+
+```powershell
+python deploy/restore.py deploy/backups/backup-NAZWA --project fishing-restore --env-file deploy/.env.restore
+```
+
+Skrypt sprawdza kompletność i sumy kontrolne, buduje obraz sklepu, uruchamia nową bazę, odtwarza bazę i pliki oraz ustawia docelowy adres HTTPS. Porównuje zapisane liczniki rekordów z kopią oraz sumy kontrolne zawartości wariantów, ich przypisań, stanów magazynowych, promocji i historii cen, jeśli występuje. Starsze kopie bez dodatkowych liczników pozostają obsługiwane. Następnie czeka na gotowość usług i wypisuje czas całej operacji. Nie uruchamia scrapera ani ponownego importu katalogu. Docelowy projekt nie może mieć istniejących kontenerów ani wolumenów; skrypt odmawia nadpisania takiego środowiska. Po nieudanej próbie użyj kolejnej nowej nazwy projektu.
+
+Dla przykładowych portów sprawdź `https://localhost:18443/`, przekierowanie z `http://localhost:18080/` i panel `https://localhost:18443/admin-dev/`. Hasło administratora pozostaje takie jak w kopii bazy. Hasło z `ADMIN_PASSWD` nie resetuje istniejących kont.
+
+Kolejne komendy Compose kieruj do tego samego projektu i pliku konfiguracji:
+
+```powershell
+docker compose --project-name fishing-restore --env-file deploy/.env.restore -f deploy/compose.yaml ps
+```
+
+Przed odbiorem wykonaj próbę z pełnym katalogiem, sprawdź zdjęcia, logowanie i zamówienia oraz czas odtworzenia do 10 minut. Pomiar obejmuje budowanie/pobieranie obrazów; zależy również od dostępności sieci i sprzętu. Skrypt nie potwierdza zaliczenia limitu samym zakończeniem bez błędów — porównaj wypisany czas z progiem.
+
+Testy Pythona dla scrapera, inicjalizacji i backupu:
+
+```powershell
+python -m pytest scraper/tests deploy/tests -q
+```
+
+Próba D4 z 27.11.2026: odtworzono pełny sklep z 915 zaimportowanymi produktami i 965 zdjęciami w 1,30 min na nowych wolumenach, z wcześniej pobranymi obrazami Dockera. Kopia zachowała również rekordy demonstracyjne powiązane z historią: łącznie 921 rekordów produktów, 113 kategorii, 973 zdjęcia, 3 klientów i 5 zamówień. Sklep docelowy używał innych portów i nowego hasła bazy. Potwierdzono zgodność wszystkich JPEG-ów produktów i miniatur, hasła konta testowego, klucza aplikacji, ustawień, certyfikatu, odpowiedzi HTTPS 200 i przekierowania HTTP 301. Osobna próba przywróciła zmieniony próg dostawy z `shop-settings.json`. Próba odtwarzania na istniejącym projekcie została odrzucona bez zmiany jego rekordów.
+
+Po scaleniu PR #41 wykonano kolejną próbę D4 z 28.11.2026: pełne odtworzenie na nowych wolumenach zajęło 1,20 min przy wcześniej pobranych obrazach Dockera. Zweryfikowano identyczną zawartość tabel kombinacji, przypisań atrybutów, stanów, promocji i historii cen. Odtworzony sklep zachował 20 promocji i 13 wariantów dla 5 produktów oraz informację o cenie historycznej. Przeszły 73 testy Pythona, 3 scenariusze Playwright, dwie dodatkowe próby zakupu W4 (łącznie 3/3) i 5 przypadków dostawy. Po zakupach ilości wariantów odpowiadały zamówieniom, a zapasy pozostałych wariantów nie zmieniły się.
