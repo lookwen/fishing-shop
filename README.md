@@ -45,9 +45,15 @@ python deploy/init-catalog.py
 
 Ta komenda konfiguruje polski sklep i checkout, sprawdza `scraper-results/products.json` według schematu scrapera, przygotowuje zdjęcia i importuje katalog do kontenera `shop`. Konfiguracja nie wymaga logowania do panelu administracyjnego. Kategorie zachowują źródłową hierarchię i przypisania, a gałęzie bez produktów są nieaktywne. Po udanym imporcie skrypt usuwa rozpoznane produkty demonstracyjne instalatora, ustawia menu na aktywne kategorie i odświeża indeks wyszukiwania. Produkty demonstracyjne powiązane z zamówieniami ukrywa i zachowuje w historii.
 
-Ponowne uruchomienie aktualizuje rekordy po identyfikatorach źródłowych i przypisuje zdjęcia po adresach URL w obrębie produktu. Import przywraca deterministyczny stan magazynowy od 0 do 10 sztuk, więc ponowne uruchomienie zastępuje ręczne zmiany ilości. Dla obecnego pliku 92 z 915 produktów otrzymują stan 0 i są niedostępne do zamówienia. Warianty nie są częścią tego importu W3.
+Ponowne uruchomienie aktualizuje rekordy po identyfikatorach źródłowych i przypisuje zdjęcia po adresach URL w obrębie produktu. Import przywraca deterministyczny zapas od 0 do 10 sztuk dla prostych produktów i demonstracyjnych wariantów D3, więc ponowne uruchomienie zastępuje ręczne zmiany tych ilości. Produkt prosty lub wariant ze stanem 0 jest niedostępny do zamówienia. Po imporcie obecnego pliku 91 z 915 produktów ma łączny stan 0.
 
 Inicjalizacja ustawia PLN i włącza podatki. PrestaShop przechowuje cenę netto wyliczoną z ceny brutto i stawki VAT. Przy braku stawki skrypt zachowuje podaną kwotę bez naliczania podatku i wykazuje taki rekord w raporcie. Obecny eksport podaje stawkę 23% dla wszystkich produktów. Wagi z eksportu są w kilogramach. Przy braku wagi PrestaShop używa technicznej wartości `0`, która oznacza brak wartości i jest zliczana w raporcie. W danych źródłowych wagę ma 17 produktów.
+
+### Promocje i warianty
+
+Te same polecenia uruchomienia i importu tworzą **20 aktywnych obniżek** jako ceny specjalne PrestaShop i **13 kombinacji dla 5 produktów**. Konfiguracja demonstracyjna wskazuje produkty i warianty po identyfikatorach eksportu. Ceny bazowe pochodzą z katalogu, a każdy wariant ma własny zapas. Log importu zawiera liczniki `d3_promotions` i `d3_products_with_combinations`. [Konfiguracja D3](shop/d3-demo.json)
+
+Moduł sklepu oblicza minimum z okresów obowiązywania cen brutto lub netto, osobno dla każdego wariantu, względem daty rozpoczęcia wybranej obniżki. Listy produktów, karta produktu, szybki podgląd i koszyk korzystają z tego samego minimum. Widoczny procent obniżki odnosi się do ceny historycznej. Ponowny import zachowuje daty istniejących promocji i ich historię. [Wytyczne UOKiK](https://prawakonsumenta.uokik.gov.pl/prawo-do-informacji/informacje-o-obnizkach-cen/)
 
 ### Witryna i zakup
 
@@ -89,7 +95,7 @@ npx playwright install chromium
 cd ..
 ```
 
-Polecenie `npm --prefix tests test` uruchamia oba zestawy. Domyślny adres sklepu to `https://localhost:8443/` oraz `http://localhost:8025`. Możesz go zmienić zmienną `SHOP_URL`. Jeśli masz już Chrome lub Edge, możesz zamiast instalowania Chromium ustawić `PLAYWRIGHT_CHANNEL` odpowiednio na `chrome` lub `msedge`. Testy zakupu tworzą konta i zamówienia oraz zmniejszają stan magazynowy kupionych produktów.
+Polecenie `npm --prefix tests test` uruchamia wszystkie zestawy. Domyślny adres sklepu to `https://localhost:8443/`, a Mailpit `http://localhost:8025`. Adres sklepu możesz zmienić zmienną `SHOP_URL`. Jeśli masz już Chrome lub Edge, możesz zamiast instalowania Chromium ustawić `PLAYWRIGHT_CHANNEL` odpowiednio na `chrome` lub `msedge`. Testy zakupu tworzą konta i zamówienia oraz zmniejszają stan magazynowy kupionych produktów.
 
 Raport HTML trafia do `tests/playwright-report/`, a zrzuty po błędzie do `tests/test-results/`. Z katalogu głównego otworzysz raport poleceniem `node tests/node_modules/playwright/cli.js show-report tests/playwright-report`.
 

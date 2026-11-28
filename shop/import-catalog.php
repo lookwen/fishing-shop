@@ -9,6 +9,7 @@ if (PHP_SAPI !== 'cli' || $argc !== 2) {
 
 $_SERVER['REQUEST_URI'] = '/';
 require '/var/www/html/config/config.inc.php';
+require __DIR__ . '/configure-d3.php';
 
 function requireResult($condition, string $message): void
 {
@@ -267,7 +268,9 @@ function removeDemoProducts(Db $db, int $shop): int
 
 function importCatalog(Db $db, string $directory): void
 {
-    $catalog = json_decode(file_get_contents("$directory/catalog.json"), true, 512, JSON_THROW_ON_ERROR);
+    $merchandisingOnly = $directory === '--d3-merchandising';
+    $input = $merchandisingOnly ? stream_get_contents(STDIN) : file_get_contents("$directory/catalog.json");
+    $catalog = json_decode($input, true, 512, JSON_THROW_ON_ERROR);
     $context = Context::getContext();
     $shop = (int) Configuration::get('PS_SHOP_DEFAULT');
     Shop::setContext(Shop::CONTEXT_SHOP, $shop);
@@ -276,6 +279,11 @@ function importCatalog(Db $db, string $directory): void
     $context->language = $language;
     $context->currency = new Currency((int) Configuration::get('PS_CURRENCY_DEFAULT'), null, $shop);
     requireResult($context->currency->iso_code === 'PLN', 'Initialize the Polish storefront first.');
+    if ($merchandisingOnly) {
+        $count = configureD3Merchandising($db, $shop, (int) $context->currency->id, $catalog, loadD3Demo($catalog), true);
+        echo json_encode(['d3_promotions' => $count], JSON_THROW_ON_ERROR) . PHP_EOL;
+        return;
+    }
     $country = (int) Country::getByIso('PL');
     $context->country = new Country($country);
     $languages = Language::getIDs(false, $shop);
@@ -293,6 +301,7 @@ function importCatalog(Db $db, string $directory): void
     ), 'Cannot initialize source mappings.');
 
     $source = $catalog['source']['base_url'];
+    $d3 = loadD3Demo($catalog);
     $categories = $depths = [];
     foreach ($catalog['categories'] as $entry) {
         $id = $entry['source_id'];
@@ -338,31 +347,39 @@ function importCatalog(Db $db, string $directory): void
                 );
             }
             requireResult($images, 'Product has no usable image.');
-            transaction($db, static function () use ($shop, $product, $productId, $images, $entry) {
+            transaction($db, static function () use ($db, $shop, $source, $product, $productId, $images, $entry, $d3, $languages) {
                 if ((int) (Image::getCover($productId)['id_image'] ?? 0) !== $images[0]) {
                     requireResult(Image::deleteCover($productId), 'Cannot clear the previous cover.');
                     $cover = new Image($images[0], null, $shop);
                     $cover->cover = true;
                     requireResult($cover->update(), 'Cannot set cover image.');
                 }
-                StockAvailable::setProductOutOfStock($productId, 0, $shop);
-                StockAvailable::setQuantity($productId, 0, $entry['quantity'], $shop, false);
-                requireResult(
-                    StockAvailable::getStockAvailableIdByProductId($productId, 0, $shop)
-                    && (int) StockAvailable::getQuantityAvailableByProduct($productId, 0, $shop) === $entry['quantity']
-                    && (int) StockAvailable::outOfStock($productId, $shop) === 0,
-                    'Cannot set stock quantity or policy.'
-                );
                 if (!$product->active) {
                     $product->active = true;
                     requireResult($product->update(), 'Cannot activate product.');
                 }
+                StockAvailable::setProductOutOfStock($productId, 0, $shop);
+                $variants = $d3['combinations'][$entry['source_id']] ?? [];
+                if ($variants) {
+                    configureD3Combinations($db, $shop, $source, $product, $entry, $variants, $languages);
+                } elseif (!$product->hasCombinations()) {
+                    StockAvailable::setQuantity($productId, 0, $entry['quantity'], $shop, false);
+                    requireResult(
+                        StockAvailable::getQuantityAvailableByProduct($productId, 0, $shop) === $entry['quantity'],
+                        'Cannot set stock quantity.'
+                    );
+                }
+                requireResult(
+                    StockAvailable::getStockAvailableIdByProductId($productId, 0, $shop)
+                    && (int) StockAvailable::outOfStock($productId, $shop) === 0,
+                    'Cannot set stock policy.'
+                );
             });
             ++$counts[$created ? 'created' : 'updated'];
             $counts['images'] += count($images);
             $counts['without_weight'] += (int) !isset($entry['weight_kg']);
             $counts['without_vat'] += (int) ($rate === null);
-            $counts['out_of_stock'] += (int) ($entry['quantity'] === 0);
+            $counts['out_of_stock'] += (int) (StockAvailable::getQuantityAvailableByProduct($productId, 0, $shop) === 0);
         } catch (Throwable $error) {
             ++$counts['failed'];
             fwrite(STDERR, "Product $id: {$error->getMessage()}\n");
@@ -374,6 +391,8 @@ function importCatalog(Db $db, string $directory): void
     if (!$counts['failed']) {
         $counts['demo_removed'] = removeDemoProducts($db, $shop);
         configureCatalogNavigation($db, $shop, $categories);
+        $counts['d3_promotions'] = configureD3Merchandising($db, $shop, (int) $context->currency->id, $catalog, $d3);
+        $counts['d3_products_with_combinations'] = count($d3['combinations']);
     }
     echo json_encode($counts, JSON_THROW_ON_ERROR) . PHP_EOL;
     requireResult(Search::indexation(false), 'Cannot update the product search index.');
