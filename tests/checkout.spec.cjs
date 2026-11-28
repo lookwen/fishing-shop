@@ -43,6 +43,7 @@ test('Zakup od koszyka do faktury VAT', async ({ page }, testInfo) => {
   const password = 'FishingTest_123!';
   const account = page.locator('#_desktop_user_info');
   const cart = new Map();
+  const orderNames = new Map();
   const carrier = 'Przesyłka standardowa';
 
   for (const [parent, category] of [
@@ -133,6 +134,15 @@ test('Zakup od koszyka do faktury VAT', async ({ page }, testInfo) => {
   await test.step('Przejście do zamówienia i podanie adresu dostawy', async () => {
     await page.locator('#_desktop_cart a').click();
     await assertCart(page, cart);
+    for (const name of cart.keys()) {
+      const attributes = await cartRow(page, name).locator('.product-line-info:has(> .label + .value)')
+        .evaluateAll(rows => rows.map(row => {
+          const label = row.querySelector('.label').textContent.trim();
+          const value = row.querySelector('.value').textContent.trim();
+          return `${label} ${value}`;
+        }));
+      orderNames.set(name, attributes.length ? `${name} (${attributes.join(' - ')})` : name);
+    }
     await page.locator('.checkout a.btn').click();
 
     const address = page.locator('#checkout-addresses-step');
@@ -190,7 +200,7 @@ test('Zakup od koszyka do faktury VAT', async ({ page }, testInfo) => {
     const lines = page.locator('#order-items .order-line');
     await expect(lines).toHaveCount(cart.size);
     for (const [name, quantity] of cart) {
-      const line = lines.filter({ has: page.locator('.details').getByText(name, { exact: true }) });
+      const line = lines.filter({ has: page.locator('.details').getByText(orderNames.get(name), { exact: true }) });
       await expect(line.locator('.qty > .row > div').nth(1)).toHaveText(String(quantity));
     }
     return reference;

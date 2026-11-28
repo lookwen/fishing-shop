@@ -1,0 +1,37 @@
+{
+  "sale_category": "category-642f06d559cd49c1",
+  "promotions": {
+    "product-32baed7991a2cd11": {"discount_percent": 20, "previous_reduction": 0.10, "older_product": true},
+    "product-a38aac62ac3a737f": {"discount_percent": 15},
+    "product-c28983368caea5e3": {"discount_percent": 10, "older_product": true},
+    "product-8bdacf849b865f68": {"discount_percent": 10},
+    "product-86eb1bd8404a61ba": {"discount_percent": 15, "older_product": true},
+    "product-f36c8d8d12bf9972": {"discount_percent": 10, "older_product": true},
+    "product-ef52b08591b95e3e": {"discount_percent": 15},
+    "product-f2c87ce1a431ad5a": {"discount_percent": 10, "older_product": true},
+    "product-ce6e08b441b11e96": {"discount_percent": 10},
+    "product-9c7388b4d951ae35": {"discount_percent": 15},
+    "product-acd36adaaa2dd445": {"discount_percent": 20, "older_product": true},
+    "product-cdce7ddcd61b2c1a": {"discount_percent": 15},
+    "product-e348db8a4bc105a2": {"discount_percent": 10, "older_product": true},
+    "product-e4cfb7f93c2a0475": {"discount_percent": 10},
+    "product-911d377486292709": {"discount_percent": 15, "older_product": true},
+    "product-8ab1005ac4825b5b": {"discount_percent": 15},
+    "product-c5d3aac30838c17a": {"discount_percent": 20, "older_product": true},
+    "product-c7870e330027f82e": {"discount_percent": 10},
+    "product-045e56db4719a322": {"discount_percent": 15, "older_product": true},
+    "product-35323bc156697ec6": {"discount_percent": 10}
+  },
+  "retired_promotions": [
+    "product-78f9b2ddeeacbd4f",
+    "product-664f43b50f78e67b",
+    "product-07393209b18069d6"
+  ],
+  "combinations": {
+    "product-32baed7991a2cd11": {"1042": 6, "1043": 4, "1044": 0},
+    "product-a38aac62ac3a737f": {"1048": 4, "1050": 3, "1049": 2, "1051": 1},
+    "product-78f9b2ddeeacbd4f": {"1052": 6, "1053": 2},
+    "product-664f43b50f78e67b": {"1056": 6, "1057": 4},
+    "product-07393209b18069d6": {"1004": 5, "1005": 5}
+  }
+}

@@ -4,6 +4,8 @@
 !shop/apache-local.conf
 !shop/configure-local-shop.php
 !shop/import-catalog.php
+!shop/configure-d3.php
+!shop/d3-demo.json
 !shop/configure-storefront.php
 !shop/storefront-pages.php
 !shop/modules/
