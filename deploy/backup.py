@@ -164,6 +164,7 @@ def create_backup(store, directory):
             "created_at": datetime.now().astimezone().isoformat(),
             "prestashop_version": exported["prestashop_version"],
             "counts": exported["counts"],
+            "fingerprints": exported.get("fingerprints", {}),
             "files": {name: checksum(directory / name) for name in FILES},
         }
         (directory / "manifest.json").write_text(

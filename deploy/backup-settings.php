@@ -56,7 +56,26 @@ foreach ($keys as $name) {
     $settings[$name] = Configuration::get($name);
 }
 $counts = [];
-foreach (['product', 'category', 'image', 'customer', 'orders'] as $table) {
+$tables = ['product', 'category', 'image', 'customer', 'orders', 'product_attribute', 'stock_available', 'specific_price'];
+$history = (int) Db::getInstance()->getValue("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '" . pSQL(_DB_PREFIX_ . 'fishing_price_history') . "'");
+if ($history) {
+    $tables[] = 'fishing_price_history';
+}
+foreach ($tables as $table) {
     $counts[$table] = (int) Db::getInstance()->getValue('SELECT COUNT(*) FROM `' . _DB_PREFIX_ . $table . '`');
 }
-echo json_encode(['settings' => $settings, 'counts' => $counts, 'prestashop_version' => _PS_VERSION_], JSON_THROW_ON_ERROR), PHP_EOL;
+$fingerprints = [];
+$ordered = ['product_attribute' => 'id_product_attribute',
+            'product_attribute_combination' => 'id_product_attribute, id_attribute',
+            'stock_available' => 'id_stock_available', 'specific_price' => 'id_specific_price'];
+if ($history) {
+    $ordered['fishing_price_history'] = 'id_shop, id_product, id_product_attribute, id_currency, valid_from';
+}
+foreach ($ordered as $table => $order) {
+    $rows = Db::getInstance()->executeS('SELECT * FROM `' . _DB_PREFIX_ . $table . '` ORDER BY ' . $order, true, false);
+    if ($rows === false) {
+        throw new RuntimeException('Cannot read backup verification data: ' . $table);
+    }
+    $fingerprints[$table] = hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR));
+}
+echo json_encode(['settings' => $settings, 'counts' => $counts, 'fingerprints' => $fingerprints, 'prestashop_version' => _PS_VERSION_], JSON_THROW_ON_ERROR), PHP_EOL;

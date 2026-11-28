@@ -76,11 +76,18 @@ def restore_backup(store, directory, project):
     settings = json.loads((directory / "settings.json").read_text(encoding="utf-8"))
     restored = store.php("restore", settings, helper=True)
     if (
-        restored["counts"] != manifest["counts"]
+        any(
+            restored["counts"].get(name) != count
+            for name, count in manifest["counts"].items()
+        )
+        or any(
+            restored.get("fingerprints", {}).get(name) != value
+            for name, value in manifest.get("fingerprints", {}).items()
+        )
         or restored["prestashop_version"] != manifest["prestashop_version"]
     ):
         raise ValueError(
-            "Restored record counts or PrestaShop version do not match the backup"
+            "Restored record counts, fingerprints or PrestaShop version do not match the backup"
         )
     store.run("up", "-d", "--wait", "--wait-timeout", "300")
     return restored

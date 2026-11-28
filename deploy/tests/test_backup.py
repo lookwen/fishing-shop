@@ -154,3 +154,30 @@ def test_existing_backup_is_not_overwritten(snapshot):
     with pytest.raises(FileExistsError):
         backup.create_backup(store, directory)
     assert (directory / "manifest.json").read_bytes() == before
+
+
+def test_changed_variant_or_price_data_is_rejected_even_when_counts_match(
+    snapshot, monkeypatch
+):
+    directory, store = snapshot
+    manifest_path = directory / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["fingerprints"] = {"stock_available": "saved-stock"}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    store.exported["fingerprints"] = {"stock_available": "changed-stock"}
+    monkeypatch.setattr(restore, "require_empty_project", lambda project: None)
+    with pytest.raises(ValueError, match="fingerprints"):
+        restore.restore_backup(store, directory, "new-shop")
+
+
+def test_older_backups_allow_additional_verification_counters(snapshot, monkeypatch):
+    directory, store = snapshot
+    store.exported["counts"]["product_attribute"] = 0
+    store.exported["fingerprints"] = {"specific_price": "additional-counter"}
+    monkeypatch.setattr(restore, "require_empty_project", lambda project: None)
+    assert (
+        restore.restore_backup(store, directory, "new-shop")["counts"][
+            "product_attribute"
+        ]
+        == 0
+    )
