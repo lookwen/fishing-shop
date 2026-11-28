@@ -29,3 +29,5 @@ test-results/
 scraper-results/product-images.zip
 scraper-results/product-images.tmp
 requirements_business.md
+
+deploy/backups/

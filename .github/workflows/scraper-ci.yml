@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Ruff and scraper unit tests
+    name: Ruff and Python unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -34,7 +34,7 @@ jobs:
         run: python -m pip install -r scraper/requirements-dev.txt
 
       - name: Lint scraper and tests
-        run: python -m ruff check scraper
+        run: python -m ruff check scraper deploy/backup.py deploy/restore.py deploy/tests/test_backup.py
 
       - name: Run scraper unit tests
-        run: python -m pytest scraper/tests -q
+        run: python -m pytest scraper/tests deploy/tests -q

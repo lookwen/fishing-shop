@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "settings": {
+    "PS_SHOP_NAME": "Fishing Shop",
+    "PS_WEIGHT_UNIT": "kg",
+    "PS_TAX": "1",
+    "PS_INVOICE": "1",
+    "PS_CONDITIONS": "1",
+    "PS_SHIPPING_FREE_PRICE": "2000.01",
+    "PS_SHIPPING_FREE_WEIGHT": "0",
+    "PS_SHIPPING_HANDLING": "0",
+    "PS_DETECT_LANG": "0",
+    "PS_DETECT_COUNTRY": "0",
+    "PS_CATALOG_MODE": "0"
+  }
+}
