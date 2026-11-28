@@ -27,6 +27,7 @@ function loadD3Demo(array $catalog): array
                 "Invalid D3 combination $id-variant-$suffix."
             );
         }
+        requireResult(array_sum($quantities) <= 10, "D3 stock exceeds 10 units for $id.");
     }
     foreach ($demo['retired_promotions'] as $id) {
         requireResult(!isset($demo['promotions'][$id]), "D3 promotion for $id is both active and retired.");
